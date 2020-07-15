@@ -1,0 +1,223 @@
+---
+# tasks file for hw_oceanstor_storage
+- name: Change OceanStor default password
+  hw_oceanstor_manage:
+    api_url: "{{ manager_float_ip }}"
+    api_port: "{{ api_port }}"
+    username: "{{ api_username }}"
+    password: "{{ default_api_password }}"
+    validate_certs: false
+    param:
+      new_password: "{{ api_password }}"
+    function: "modify_user_password"
+  tags: change-password
+
+- name: Get OceanStor Auth token
+  hw_oceanstor_manage:
+    api_url: "{{ manager_float_ip }}"
+    api_port: "{{ api_port }}"
+    username: "{{ api_username }}"
+    password: "{{ api_password }}"
+    validate_certs: false
+    function: "get_token"
+  become: yes
+  register: token
+  tags:
+    - always
+
+- name: Set api-token factor
+  set_fact: api_token={{ token.token }}
+  tags:
+    - always
+
+- name: Restore factory for OceanStor storage
+  hw_oceanstor_manage:
+    api_url: "{{ manager_float_ip }}"
+    api_port: "{{ api_port }}"
+    username: "{{ api_username }}"
+    password: "{{ api_password }}"
+    validate_certs: false
+    token: "{{ api_token }}"
+    function: "restore_factory"
+  when: "{{ restore_factory }}==true"
+  tags: restore_factory
+
+- name: Add Huawei OceanStor Storage
+  hw_oceanstor_add_storage:
+    api_url: "{{ manager_float_ip }}"
+    api_port: "{{ api_port }}"
+    username: "{{ api_username }}"
+    password: "{{ api_password }}"
+    token: "{{ api_token }}"
+    servers: "{{ servers_info }}"
+    step: "add_node"
+  become: yes
+  tags: storage
+
+- name: Check Add Huawei OceanStor Storage status
+  hw_oceanstor_add_storage:
+    api_url: "{{ manager_float_ip }}"
+    api_port: "{{ api_port }}"
+    username: "{{ api_username }}"
+    password: "{{ api_password }}"
+    token: "{{ api_token }}"
+    service_type: "agent"
+    servers: "{{ servers_info }}"
+    step: "check_status"
+  become: yes
+  register: result
+  until: "result.status=='success' or result.status=='failure'"
+  retries: 50
+  delay: 5
+  tags: storage
+
+- name: Exit if add OceanStor task failture
+  fail: msg="fail"
+  when: result.status=='failure'
+  tags: storage
+
+- name: Config OceanStor Storage frontend network
+  hw_oceanstor_config_network:
+    api_url: "{{ manager_float_ip }}"
+    api_port: "{{ api_port }}"
+    username: "{{ api_username }}"
+    password: "{{ api_password }}"
+    token: "{{ api_token }}"
+    network_param: "{{ storage_front_network }}"
+    network_type: "storage_frontend"
+    step: "config_network"
+  tags: network
+
+- name: Config OceanStor Storage backend network
+  hw_oceanstor_config_network:
+    api_url: "{{ manager_float_ip }}"
+    api_port: "{{ api_port }}"
+    username: "{{ api_username }}"
+    password: "{{ api_password }}"
+    token: "{{ api_token }}"
+    network_param: "{{ storage_backend_network }}"
+    network_type: "storage_backend"
+    step: "config_network"
+  tags: network
+
+- name: Validity OceanStor Storage frontend network
+  hw_oceanstor_config_network:
+    api_url: "{{ manager_float_ip }}"
+    api_port: "{{ api_port }}"
+    username: "{{ api_username }}"
+    password: "{{ api_password }}"
+    token: "{{ api_token }}"
+    network_param: "{{ storage_front_network }}"
+    network_type: "storage_frontend"
+    step: "validity_network"
+  tags: network
+
+- name: Validity OceanStor Storage backend network
+  hw_oceanstor_config_network:
+    api_url: "{{ manager_float_ip }}"
+    api_port: "{{ api_port }}"
+    username: "{{ api_username }}"
+    password: "{{ api_password }}"
+    token: "{{ api_token }}"
+    network_param: "{{ storage_backend_network }}"
+    network_type: "storage_backend"
+    step: "validity_network"
+  tags: network
+
+- name: Install Huawei OceanStor Storage
+  hw_oceanstor_add_storage:
+    api_url: "{{ manager_float_ip }}"
+    api_port: "{{ api_port }}"
+    username: "{{ api_username }}"
+    password: "{{ api_password }}"
+    token: "{{ api_token }}"
+    servers: "{{ servers_info }}"
+    step: "install_node"
+  become: yes
+  tags: storage
+
+- name: Check Install Huawei OceanStor Storage status
+  hw_oceanstor_add_storage:
+    api_url: "{{ manager_float_ip }}"
+    api_port: "{{ api_port }}"
+    username: "{{ api_username }}"
+    password: "{{ api_password }}"
+    token: "{{ api_token }}"
+    servers: "{{ servers_info }}"
+    service_type: "all"
+    step: "check_status"
+  become: yes
+  register: result
+  until: "result.status=='success' or result.status=='failure'"
+  delay: 5
+  retries: 100
+  tags: storage
+
+- name: Exit if install OceanStor task failture
+  fail: msg="fail"
+  when: result.status=='failure'
+  tags: storage
+
+- name: "Create OceanStor manage cluster"
+  hw_oceanstor_manage:
+    api_url: "{{ manager_float_ip }}"
+    api_port: "{{ api_port }}"
+    username: "{{ api_username }}"
+    password: "{{ api_password }}"
+    validate_certs: false
+    token: "{{ api_token }}"
+    function: "create_manage_cluster"
+    param: "{{ manage_cluster }}"
+  become: yes
+  tags:
+    - storage
+    - mdc
+
+- name: "Create OceanStor storage pool"
+  hw_oceanstor_manage:
+    api_url: "{{ manager_float_ip }}"
+    api_port: "{{ api_port }}"
+    username: "{{ api_username }}"
+    password: "{{ api_password }}"
+    validate_certs: false
+    token: "{{ api_token }}"
+    function: "create_storage_pool"
+    param:
+      poolName: "{{ hw_oceanstor_pool_name }}"
+      serviceType: "{{ hw_oceanstor_pool_service_type }}"
+      encryptType: "{{ hw_oceanstor_pool_encryt_type }}"
+      storageMediaType: "{{ hw_oceanstor_pool_main_media_type }}"
+      cacheMediaType: "{{ hw_oceanstor_pool_cache_media_type }}"
+      compressionAlgorithm: "{{ hw_oceanstor_pool_compression_algorithm }}"
+      redundancyPolicy: "{{ hw_oceanstor_pool_redundancy_policy }}"
+      replicaNum: "{{ hw_oceanstor_pool_replica_num }}"
+      securityLevel: "{{ hw_oceanstor_pool_security_level }}"
+      numDataUnits: "{{ hw_oceanstor_pool_num_data_units }}"
+      numParityUnits: "{{ hw_oceanstor_pool_num_parity_units }}"
+      numFaultTolerance: "{{ hw_oceanstor_pool_num_fault_tolerance }}"
+      serverList: "{{ pool_server_list }}"
+  become: yes
+  register: pool_task
+  tags:
+    - storage
+    - create-pool
+
+- name: Check create OceanStor storage pool progress
+  hw_oceanstor_manage:
+    api_url: "{{ manager_float_ip }}"
+    api_port: "{{ api_port }}"
+    username: "{{ api_username }}"
+    password: "{{ api_password }}"
+    validate_certs: false
+    token: "{{ api_token }}"
+    function: "query_task_info"
+    param:
+      taskId: "{{ pool_task.taskId }}"
+  become: yes
+  register: progress
+  until: "progress.task.taskStatus=='success' or progress.task.taskStatus=='failed'"
+  delay: 5
+  retries: 25
+  tags:
+    - storage
+    - create-pool

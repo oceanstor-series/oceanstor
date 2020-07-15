@@ -1,0 +1,4 @@
+---
+# handlers file for hw_oceanstor_management
+- name: call in every action
+  debug: msg="call in every action, but execute only one time"

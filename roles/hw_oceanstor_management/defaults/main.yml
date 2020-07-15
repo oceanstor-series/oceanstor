@@ -1,0 +1,4 @@
+---
+# defaults file for hw_oceanstor_management
+oceanstor_artifact_version: 8.0.3 # Huawei OceanStor version, default is 8.0.3
+oceanstor_deploymanager_dir: /opt/fusionstorage/repository/deploymanager_pkg/DSwareSoft/

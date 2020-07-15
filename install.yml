@@ -1,0 +1,38 @@
+---
+- hosts: fsm-master
+  gather_facts: no
+  tasks:
+  - name: Get interface name by ip address
+    shell: "ifconfig | grep -B 2 10.183.144.186 | head -n 1 | awk -F: '{print $1}'"
+    register: interface
+    tags: aaaa
+
+  - name: Set fact for master node
+    set_fact:
+      manager_local_port: "{{ interface.stdout }}"
+    tags: aaaa
+
+- hosts: fsm-slave
+  tasks:
+  - name: debug
+    debug: "{{ manager_local_port }}"
+    tags: aaaa
+
+- hosts: fsm-master
+  gather_facts: no
+  collections:
+    - oceanstor_series.oceanstor
+  tasks:
+    - import_role:
+        name: hw_oceanstor_management
+
+- hosts: localhost
+  gather_facts: no
+  collections:
+    - oceanstor_series.oceanstor
+  remote_user: root
+  tasks:
+    - debug:
+        msg: "Begin to install OceanStor storage"
+    - import_role:
+        name: hw_oceanstor_storage

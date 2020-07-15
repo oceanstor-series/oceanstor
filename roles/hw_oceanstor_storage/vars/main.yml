@@ -1,0 +1,138 @@
+---
+# vars file for hw_oceanstor_storage
+# 节点信息 管理IP地址
+servers_info: [
+  {"model": null, "slot_number": "", "name":"", "serial_number": "", "management_internal_ip": "10.183.144.186", "cabinet": "1", "user_name": "root", "password": "iq7YV8DGBTc^","root_password": "iq7YV8DGBTc^", role:["management","storage"], "authentication_mode": "password"},
+  {"model": null, "slot_number": "", "name":"", "serial_number": "", "management_internal_ip": "10.183.144.161", "cabinet": "1", "user_name": "root", "password": "Ra014KO%YVzd","root_password": "Ra014KO%YVzd", role:["management","storage"], "authentication_mode": "password"},
+  {"model": null, "slot_number": "", "name":"", "serial_number": "", "management_internal_ip": "10.183.145.14", "cabinet": "1", "user_name": "root", "password": "tqg8OQX!C^xL","root_password": "tqg8OQX!C^xL", role:["storage"], "authentication_mode": "password"}
+]
+
+# 配置存储前端网络参数
+storage_front_network: {
+  "bond_mode": "",
+  "ip_version": 4,
+  "transfer_protocol": "TCP",
+  "ip_list": [{"port_name": "", "ip_segment":{"begin_ip":"10.183.144.1", "end_ip":"10.183.145.255"}, "subnet_prefix":"23", "default_gateway":"0.0.0.0"}]
+}
+
+# 配置存储后端网络参数
+storage_backend_network: {
+  "bond_mode": "",
+  "ip_version": 4,
+  "transfer_protocol": "TCP",
+  "ip_list": [{"port_name": "", "ip_segment":{"begin_ip":"10.183.144.1", "end_ip":"10.183.145.255"}, "subnet_prefix":"23", "default_gateway":"0.0.0.0"}]
+}
+
+# 创建控制集群参数
+manage_cluster: {
+  "name": "StorageControlCluster",
+  "serverList": [
+    {"nodeMgrIp": "10.183.144.186", "zkType": "ssd_disk", "zkDiskSlot": 1, "zkDiskEsn": "", "zkPartition": ""},
+    {"nodeMgrIp": "10.183.144.161", "zkType": "ssd_disk", "zkDiskSlot": 1, "zkDiskEsn": "", "zkPartition": ""},
+    {"nodeMgrIp": "10.183.145.14", "zkType": "ssd_disk", "zkDiskSlot": 1, "zkDiskEsn": "", "zkPartition": ""}
+  ]
+}
+
+# 创建存储池参数
+hw_oceanstor_pool_name: "hw_pool"
+hw_oceanstor_pool_service_type: "1" # 1: block 2: file 3: object 4: HDFS
+hw_oceanstor_pool_encryt_type: "0" # 0: common storage pool, 1:encrypted storage pool
+hw_oceanstor_pool_main_media_type: "ssd_disk"
+hw_oceanstor_pool_cache_media_type: "none" 
+hw_oceanstor_pool_compression_algorithm: "" #performance: 性能型 capacity: 容量型
+hw_oceanstor_pool_redundancy_policy: "ec"
+hw_oceanstor_pool_replica_num: 3
+hw_oceanstor_pool_security_level: "server" # 0: cabinet level; 1: server level
+hw_oceanstor_pool_num_data_units: 4
+hw_oceanstor_pool_num_parity_units: 2
+hw_oceanstor_pool_num_fault_tolerance: 1
+
+pool_server_list: [
+  {
+    "nodeMgrIp": "10.183.145.14",
+    "mediaList": [
+      {
+        "mediaRole": "main_storage",
+        "mediaType": "ssd_disk",
+        "phyDevEsn": "1018314514xvdf",
+        "phySlotId": 2
+      },
+      {
+        "mediaRole": "main_storage",
+        "mediaType": "ssd_disk",
+        "phyDevEsn": "1018314514xvdg",
+        "phySlotId": 3
+      },
+      {
+        "mediaRole": "main_storage",
+        "mediaType": "ssd_disk",
+        "phyDevEsn": "1018314514xvdh",
+        "phySlotId": 4
+      },
+      {
+        "mediaRole": "main_storage",
+        "mediaType": "ssd_disk",
+        "phyDevEsn": "1018314514xvdi",
+        "phySlotId": 5
+      }
+    ]
+  },
+  {
+    "nodeMgrIp": "10.183.144.186",
+    "mediaList": [
+      {
+        "mediaRole": "main_storage",
+        "mediaType": "ssd_disk",
+        "phyDevEsn": "10183144186xvdf",
+        "phySlotId": 2
+      },
+      {
+        "mediaRole": "main_storage",
+        "mediaType": "ssd_disk",
+        "phyDevEsn": "10183144186xvdg",
+        "phySlotId": 3
+      },
+      {
+        "mediaRole": "main_storage",
+        "mediaType": "ssd_disk",
+        "phyDevEsn": "10183144186xvdh",
+        "phySlotId": 4
+      },
+      {
+        "mediaRole": "main_storage",
+        "mediaType": "ssd_disk",
+        "phyDevEsn": "10183144186xvdi",
+        "phySlotId": 5
+      }
+    ]
+  },
+  {
+    "nodeMgrIp": "10.183.144.161",
+    "mediaList": [
+      {
+        "mediaRole": "main_storage",
+        "mediaType": "ssd_disk",
+        "phyDevEsn": "10183144161xvdf",
+        "phySlotId": 2
+      },
+      {
+        "mediaRole": "main_storage",
+        "mediaType": "ssd_disk",
+        "phyDevEsn": "10183144161xvdg",
+        "phySlotId": 3
+      },
+      {
+        "mediaRole": "main_storage",
+        "mediaType": "ssd_disk",
+        "phyDevEsn": "10183144161xvdh",
+        "phySlotId": 4
+      },
+      {
+        "mediaRole": "main_storage",
+        "mediaType": "ssd_disk",
+        "phyDevEsn": "10183144161xvdi",
+        "phySlotId": 5
+      }
+    ]
+  }
+]

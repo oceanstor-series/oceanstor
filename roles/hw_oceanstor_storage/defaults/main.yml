@@ -1,0 +1,9 @@
+---
+# defaults file for hw_oceanstor_storage 
+manager_float_ip: 10.183.144.46
+api_port: 8088 
+api_username: "admin"
+api_password: "Admin@123"
+default_api_password: "Admin@storage"
+api_token: ""
+restore_factory: false

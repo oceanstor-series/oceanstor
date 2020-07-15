@@ -1,0 +1,37 @@
+---
+- hosts: fsm
+  gather_facts: no
+  collections:
+    - oceanstor_series.oceanstor
+  tasks:
+    - name: Get interface name by ip address
+      shell: "ifconfig | grep -B 2 {{ groups['fsm-master'][0] }} | head -n 1 | awk -F: '{print $1}'"
+      register: interface
+      delegate_to: "{{ groups['fsm-master'][0] }}"
+      tags: aaaa
+
+    - name: Set fact for master node interface name
+      set_fact:
+        manager_local_port: "{{ interface.stdout }}"
+      tags: aaaa
+
+    - name: Get interface name by ip address
+      shell: "ifconfig | grep -B 2 {{ groups['fsm-slave'][0] }} | head -n 1 | awk -F: '{print $1}'"
+      register: interface
+      delegate_to: "{{ groups['fsm-slave'][0] }}"
+      tags: aaaa
+
+    - name: Set fact for slave node interface name
+      set_fact:
+        manager_remote_port: "{{ interface.stdout }}"
+      tags: aaaa
+
+    - name: debug
+      debug:
+        var="{{ manager_local_port }}"
+        var="{{ manager_remote_port }}"
+      tags: aaaa
+
+    - import_role:
+        name: hw_oceanstor_management
+      delegate_to: "{{ groups['fsm-master'][0] }}"
