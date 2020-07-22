@@ -9,6 +9,7 @@ class OceanStorError(Exception):
     def __str__(self):
         return "OceanStorError: {0}".format(self.reason)
 
+
 class OceanStorParamError(OceanStorError):
     """Exception type raised by OceanStor param.
     """

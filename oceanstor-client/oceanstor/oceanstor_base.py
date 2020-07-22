@@ -9,7 +9,6 @@ import json
 import requests
 import logging
 import requests.exceptions as r_exc
-import sys
 import urllib3
 
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
@@ -41,13 +40,13 @@ class OceanStorBase(object):
         session = requests.session()
         session.headers = self.headers
         session.verify = self.verify_ssl
-        
+
         if not token:
             url = "/api/v2/aa/sessions"
 
             session_url = '{base_url}{url}'.format(base_url=self.base_url, url=url)
 
-            body =  {
+            body = {
                 "user_name": username,
                 "password": password,
                 "scope": 0
@@ -69,6 +68,23 @@ class OceanStorBase(object):
 
         return session
 
+    def _judge_response(self, response):
+        """judge response status.
+        :param response: response -- str
+        :returns: server res status_code -- dict, int
+        """
+        status_code = response.status_code
+        if status_code == 401:
+            LOG.error("Unauthentication, please login first")
+            raise Exception("Unauthentication, please login first")
+        try:
+            res = response.json()
+        except ValueError:
+            res = None
+            if not status_code:
+                status_code = None
+        return res, status_code
+
     def request(self, target_url, method, params=None, request_object=None, timeout=None):
         """Send a request to OceanStor target api.
         Valid methods are 'GET', 'POST', 'PUT', 'DELETE'.
@@ -86,7 +102,7 @@ class OceanStorBase(object):
 
         if not self.session:
             raise Exception("Please Login")
- 
+
         url = '{base_url}{target_url}'.format(
             base_url=self.base_url, target_url=target_url)
         try:
@@ -102,21 +118,13 @@ class OceanStorBase(object):
             else:
                 response = self.session.request(method=method, url=url,
                                                 timeout=timeout_val)
-            status_code = response.status_code
-            if status_code == 401:
-                LOG.error("Unauthentication, please login first")
-                raise Exception("Unauthentication, please login first")
-            try:
-                response = response.json()
-            except ValueError:
-                response = None
-                if not status_code:
-                    status_code = None
+
+            res, status_code = self._judge_response(response)
 
             LOG.debug('{method} request to {url} has returned with a status '
                       'code of: {sc}.'.format(method=method, url=url,
                                               sc=status_code))
-            return response
+            return res
 
         except requests.Timeout as error:
             LOG.error(
@@ -139,7 +147,6 @@ class OceanStorBase(object):
                     base=self.base_url, m=error))
             raise r_exc.BaseHTTPError(msg)
 
-
     def rest_request(self, target_url, method,
                      params=None, request_object=None, timeout=None):
         """Send a request to OceanStor target api.
@@ -158,7 +165,7 @@ class OceanStorBase(object):
 
         if not self.session:
             raise Exception("Please Login")
- 
+
         url = '{base_url}{target_url}'.format(
             base_url=self.base_url, target_url=target_url)
         try:
@@ -174,21 +181,12 @@ class OceanStorBase(object):
             else:
                 response = self.session.request(method=method, url=url,
                                                 timeout=timeout_val)
-            status_code = response.status_code
-            if status_code == 401:
-                LOG.error("Unauthentication, please login first")
-                raise Exception("Unauthentication, please login first")
-            try:
-                response = response.json()
-            except ValueError:
-                response = None
-                if not status_code:
-                    status_code = None
+            res, status_code = self._judge_response(response)
 
             LOG.debug('{method} request to {url} has returned with a status '
                       'code of: {sc}.'.format(method=method, url=url,
                                               sc=status_code))
-            return response, status_code
+            return res, status_code
 
         except requests.Timeout as error:
             LOG.error(

@@ -1,7 +1,8 @@
 #!/usr/bin/python
 
 # (c) 2020, huawei, Inc
-
+from ansible.module_utils.basic import AnsibleModule
+from oceanstor.oceanstor_add_storage import OceanStorStorage
 
 DOCUMENTATION = """
 ---
@@ -35,7 +36,13 @@ EXAMPLES = """
             api_port: "8088"
             username: "admin"
             password: "admin"
-            servers: "[{"model": null, "slot_number": "", "name":"", "serial_number": "", "management_internal_ip": "1.1.1.1", "cabinet": "1", "user_name": "root", "password": "***","root_password": "***", role:["management","storage"], "authentication_mode": "password"}]"
+            servers: "[{"model": null, "slot_number": "", "name":"",
+                        "serial_number": "",
+                        "management_internal_ip": "1.1.1.1",
+                        "cabinet": "1", "user_name": "root",
+                        "password": "***","root_password": "***",
+                        role:["management","storage"],
+                        "authentication_mode": "password"}]"
             step: "add_node"
         become: yes
 """
@@ -48,8 +55,6 @@ msg:
     sample: The settings have been updated.
 """
 
-from ansible.module_utils.basic import AnsibleModule
-from oceanstor.oceanstor_add_storage import OceanStorStorage
 
 class HuaweiOceanStorAddStorage(object):
     def __init__(self):
@@ -90,25 +95,27 @@ class HuaweiOceanStorAddStorage(object):
         manager_servers = []
         storage_servers = []
         for server in self.module.params["servers"]:
-            response, code = self.oceanstor.check_connection(server)
+            response = self.oceanstor.check_connection(server)
+            if response['result']['code'] != '0':
+                self.module.fail_json(changed=False, msg="check node {0} "
+                                      "connection failed".format(server))
             if "management" in server["role"]:
                 manager_servers.append(server)
             elif "storage" in server["role"]:
                 storage_servers.append(server)
         # step 2: add storage node which include manager role
-        res, _ = self.oceanstor.add_storage_servers_with_fsm(manager_servers)
+        self.oceanstor.add_storage_servers_with_fsm(manager_servers)
         # step 3: add storage node
-        response, code = self.oceanstor.add_storage_servers(storage_servers)
+        self.oceanstor.add_storage_servers(storage_servers)
 
         self.module.exit_json(msg="Add OceanStor storage Node complete",
-                                  changed=True)
-
+                              changed=True)
 
     def check_status(self):
         """Check add storage node status."""
         service_type = self.module.params["service_type"]
 
-        response, code = self.oceanstor.deploy_service_task(service_type)
+        response = self.oceanstor.deploy_service_task(service_type)
 
         status = response['data']['task_status']
 
@@ -116,10 +123,9 @@ class HuaweiOceanStorAddStorage(object):
 
         self.module.exit_json(status=status, changed=True)
 
-
     def install_node(self):
         """Install OceanStor storage node."""
-        response, code = self.oceanstor.get_server_info()
+        response = self.oceanstor.get_server_info()
         servers = response["data"]
         server_param = []
 
@@ -143,18 +149,19 @@ class HuaweiOceanStorAddStorage(object):
             self.get_token()
 
         elif step == "add_node":
-           self.add_node()
+            self.add_node()
 
         elif step == "install_node":
             self.install_node()
 
         elif step == "check_status":
-            status = self.check_status()
+            self.check_status()
 
 
 def main():
     settings = HuaweiOceanStorAddStorage()
     settings.update()
+
 
 if __name__ == '__main__':
     main()

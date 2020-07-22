@@ -8,9 +8,10 @@
 import logging
 
 from oceanstor_base import OceanStorBase
-from exception import OceanStorParamError, OceanStorHTTPError
+from exception import OceanStorParamError
 
 LOG = logging.getLogger(__name__)
+
 
 class OceanStorStorage(OceanStorBase):
     """ Add OceanStor storage """
@@ -25,7 +26,7 @@ class OceanStorStorage(OceanStorBase):
                                                verify=False,
                                                retries=3,
                                                timeout=120)
-        
+
     def login(self, username, password):
         """ 登录鉴权
         """
@@ -36,8 +37,8 @@ class OceanStorStorage(OceanStorBase):
     def get_token(self):
         """ 获取token信息
         """
-        if self.session.headers.has_key("X-Auth-Token") and \
-            self.session.headers["X-Auth-Token"] != None:
+        if "X-Auth-Token" in self.session.headers and \
+                self.session.headers["X-Auth-Token"] is not None:
             return self.session.headers["X-Auth-Token"]
 
         return None
@@ -50,13 +51,13 @@ class OceanStorStorage(OceanStorBase):
             "is_timeout": "false"
         }
 
-        return self.rest_request(url, "DELETE", params=params)
+        return self.request(url, "DELETE", params=params)
 
     def check_connection(self, server):
         """ 查询节点的连接状态
         input: server, 请求参数体,为dict
             - management_internal_ip:  str - required
-            - cabinet: str - 
+            - cabinet: str -
             - slot_number: int -
             - subrack: int -
             - role: - list -required ["management", "storage"]
@@ -79,29 +80,29 @@ class OceanStorStorage(OceanStorBase):
         """
         target_url = "/api/v2/deploy_manager/connection"
 
-        if not server.has_key("management_internal_ip") or \
-            server['management_internal_ip'] == "":
+        if "management_internal_ip" not in server or \
+                server['management_internal_ip'] == "":
             LOG.error("management ip not configured!")
             raise OceanStorParamError("management ip not exists")
 
-        response, code = self.rest_request(target_url,
-                                           method="POST",
-                                           request_object=server)
-        return response, code
+        response = self.request(target_url, method="POST",
+                                request_object=server)
+
+        return response
 
     def get_server_info(self):
         """ 查询节点信息
         """
         url = "/api/v2/deploy_manager/servers"
 
-        return self.rest_request(url, "GET")
+        return self.request(url, "GET")
 
     def restore_factory(self):
         """ 恢复出厂设置
         """
         url = "/api/v2/deploy_manager/nodes.restore_factory_settings()"
 
-        response, code = self.rest_request(url, "POST")
+        response = self.request(url, "POST")
 
         return response
 
@@ -109,16 +110,19 @@ class OceanStorStorage(OceanStorBase):
         """ 增加管理存储节点
         """
         url = "/api/v2/deploy_manager/servers"
-        return self.rest_request(url, "PUT", request_object=servers)
+
+        return self.request(url, "PUT", request_object=servers)
 
     def add_storage_servers(self, servers):
         """ 增加节点信息
         """
         url = "/api/v2/deploy_manager/servers"
+
         body = {
             "server_list": servers
         }
-        return self.rest_request(url, "POST", request_object=servers)
+
+        return self.request(url, "POST", request_object=body)
 
     def deploy_service(self, node_list, service_type="agent"):
         """ 批量部署存储服务
@@ -128,7 +132,7 @@ class OceanStorStorage(OceanStorBase):
             "service_type": service_type,
             "node_ip_set": node_list
         }
-        return self.rest_request(url, "POST", request_object=body)
+        return self.request(url, "POST", request_object=body)
 
     def deploy_service_task(self, service_type="agent"):
         """ 查询节点的部署状态
@@ -139,11 +143,11 @@ class OceanStorStorage(OceanStorBase):
             "service_type": service_type
         }
 
-        return self.rest_request(url, "GET", params=params)
+        return self.request(url, "GET", params=params)
 
     def get_network_platform(self, network_type):
         """ 查询指定网络平面信息
-        network_type 可选值: 
+        network_type 可选值:
             management_external_float：管理外部网络浮动IP；
             management_internal_float：管理内部网络浮动IP；
             management_external：管理外部网络IP；
@@ -159,11 +163,11 @@ class OceanStorStorage(OceanStorBase):
             "network_type": network_type
         }
 
-        return self.rest_request(url, "GET", params=params)
+        return self.request(url, "GET", params=params)
 
     def config_network_type(self, network_type, protocol, network):
         """ 配置指定网络平面信息
-        network_type 可选值: 
+        network_type 可选值:
             management_external_float：管理外部网络浮动IP；
             management_internal_float：管理内部网络浮动IP；
             management_external：管理外部网络IP；
@@ -182,11 +186,11 @@ class OceanStorStorage(OceanStorBase):
 
         body.update(network)
 
-        return self.rest_request(url, "PUT", request_object=body)
+        return self.request(url, "PUT", request_object=body)
 
     def validity_network(self, network_type, servers):
         """ 校验指定网络平面信息
-        network_type 可选值: 
+        network_type 可选值:
             management_external_float：管理外部网络浮动IP；
             management_internal_float：管理内部网络浮动IP；
             management_external：管理外部网络IP；
@@ -196,7 +200,7 @@ class OceanStorStorage(OceanStorBase):
             replication：复制网络；
             quorum：仲裁网络；
             iscsi：iSCSI网络。
-        servers: 管理ip列表 
+        servers: 管理ip列表
             [
                 {"management_internal_ip": "1.1.1.1"},
                 {"management_internal_ip": "1.1.1.2"}
@@ -209,7 +213,7 @@ class OceanStorStorage(OceanStorBase):
             "servers": servers
         }
 
-        return self.rest_request(url, "POST", request_object=body)
+        return self.request(url, "POST", request_object=body)
 
     def create_manage_cluster(self, name, servers):
         """ 创建控制集群
@@ -244,7 +248,7 @@ class OceanStorStorage(OceanStorBase):
             "serverList": servers
         }
 
-        response, code =  self.rest_request(url, "POST", request_object=body)
+        response = self.request(url, "POST", request_object=body)
         return response
 
     def modify_user_password(self, username, password, old_password, role_id=None):
@@ -334,119 +338,29 @@ class OceanStorStorage(OceanStorBase):
 
         return self.request(url, "GET", params=params)
 
+    def get_cluster_info(self):
+        """ 批量查询集群节点信息
+        """
+        url = "/api/v2/cluster/servers"
+
+        return self.request(url, "GET")
+
+    def create_vbs_client(self, server_list):
+        """ 创建VBS Client
+        """
+        url = "/dsware/service/cluster/dswareclient/createDSwareClient"
+
+        body = {
+            "servers": server_list
+        }
+
+        return self.request(url, "POST", request_object=body)
+
 
 def main():
-    oss = OceanStorStorage("https://10.183.144.46:8088", "admin", "Admin@123", token="NDA1MjkwOTk4OEFNTU1NTU1NTU1NTU1N")
-    #oss = OceanStorStorage("https://10.251.138.240:8088/gui", "admin", "Admin@123")
-    
-    #response = oss.get_task_info()
-    #print response
-
-    serverList = [
-        {
-            "mediaList": [
-                {
-                    "mediaRole": "main_storage", 
-                    "mediaType": "ssd_disk", 
-                    "phyDevEsn": "1018314514xvdf", 
-                    "phySlotId": 2
-                }, 
-                {
-                    "mediaRole": "main_storage", 
-                    "mediaType": "ssd_disk", 
-                    "phyDevEsn": "1018314514xvdg", 
-                    "phySlotId": 3
-                }, 
-                {
-                    "mediaRole": "main_storage", 
-                    "mediaType": "ssd_disk", 
-                    "phyDevEsn": "1018314514xvdh", 
-                    "phySlotId": 4
-                }, 
-                {
-                    "mediaRole": "main_storage", 
-                    "mediaType": "ssd_disk", 
-                    "phyDevEsn": "1018314514xvdi", 
-                    "phySlotId": 5
-                }
-            ], 
-            "nodeMgrIp": "10.183.145.14"
-        }, 
-        {
-            "mediaList": [
-                {
-                    "mediaRole": "main_storage", 
-                    "mediaType": "ssd_disk", 
-                    "phyDevEsn": "10183144186xvdf", 
-                    "phySlotId": 2
-                }, 
-                {
-                    "mediaRole": "main_storage", 
-                    "mediaType": "ssd_disk", 
-                    "phyDevEsn": "10183144186xvdg", 
-                    "phySlotId": 3
-                }, 
-                {
-                    "mediaRole": "main_storage", 
-                    "mediaType": "ssd_disk", 
-                    "phyDevEsn": "10183144186xvdh", 
-                    "phySlotId": 4
-                }, 
-                {
-                    "mediaRole": "main_storage", 
-                    "mediaType": "ssd_disk", 
-                    "phyDevEsn": "10183144186xvdi", 
-                    "phySlotId": 5
-                }
-            ], 
-            "nodeMgrIp": "10.183.144.186"
-        }, 
-        {
-            "mediaList": [
-                {
-                    "mediaRole": "main_storage", 
-                    "mediaType": "ssd_disk", 
-                    "phyDevEsn": "10183144161xvdf", 
-                    "phySlotId": 2
-                }, 
-                {
-                    "mediaRole": "main_storage", 
-                    "mediaType": "ssd_disk", 
-                    "phyDevEsn": "10183144161xvdg", 
-                    "phySlotId": 3
-                }, 
-                {
-                    "mediaRole": "main_storage", 
-                    "mediaType": "ssd_disk", 
-                    "phyDevEsn": "10183144161xvdh", 
-                    "phySlotId": 4
-                }, 
-                {
-                    "mediaRole": "main_storage", 
-                    "mediaType": "ssd_disk", 
-                    "phyDevEsn": "10183144161xvdi", 
-                    "phySlotId": 5
-                }
-            ], 
-            "nodeMgrIp": "10.183.144.161"
-        }
-    ]
-    pool_para = {
-        "poolName": "test",
-        "serviceType": "1",
-        "storageMediaType": "ssd_disk",
-        "cacheMediaType": "none",
-        "securityLevel": "server",
-        "redundancyPolicy": "ec",
-        "numDataUnits": 4,
-        "numParityUnits": 2,
-        "numFaultTolerance": 1
-    }
-    #response = oss.create_storage_pool(pool_para, serverList)
-    #print response
-    
-    response = oss.query_tasklog_info(19)
-    print response
+    pass
+    # oss = OceanStorStorage("https://10.183.144.46:8088", "admin", "***", token="***")
+    # oss.query_tasklog_info(19)
 
 
 if __name__ == "__main__":

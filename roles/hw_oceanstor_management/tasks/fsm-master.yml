@@ -1,0 +1,99 @@
+---
+# get params from fsm-master
+- name: Get manager local interface name by ip address
+  shell: "ifconfig | grep -B 2 {{ groups['fsm-master'][0] }} | head -n 1 | awk -F: '{print $1}'"
+  register: manager_local_interface
+  delegate_to: "{{ groups['fsm-master'][0] }}"
+  tags: get-param
+
+- name: Set fact for master node interface name
+  set_fact:
+    manager_local_port: "{{ manager_local_interface.stdout }}"
+  tags: get-param
+
+- name: Get service local interface name by ip address
+  shell: "ifconfig | grep -B 2 {{ groups['fsm-master'][0] }} | head -n 1 | awk -F: '{print $1}'"
+  register: service_local_interface
+  delegate_to: "{{ groups['fsm-master'][0] }}"
+  tags: get-param
+
+- name: Set fact for master node interface name
+  set_fact:
+    service_local_port: "{{ service_local_interface.stdout }}"
+  tags: get-param
+
+- name: Get  service gateway and manager gateway by ip address
+  shell: "port_name=`ip a 2>/dev/null | grep -w {{ groups['fsm-master'][0] }} | awk '{print $NF}'` && route -n |
+       grep '^0.0.0.0' | grep 'UG' | grep -w ${port_name} | head -n 1 | awk '{print $2}'"
+  register: service_gateway
+  delegate_to: "{{ groups['fsm-master'][0] }}"
+  tags: get-param
+
+- name: Set fact for service gateway name and manager gateway name
+  set_fact:
+    service_gateway: "{{ service_gateway.stdout }}"
+    manager_gateway: "{{ service_gateway.stdout }}"
+  tags: get-param
+
+- name: Get  service mask and manager mask by ip address
+  shell: "ifconfig | grep -w {{ groups['fsm-master'][0] }} | awk '{print $4}'"
+  register: service_mask
+  delegate_to: "{{ groups['fsm-master'][0] }}"
+  tags: get-param
+
+- name: Set fact for service mask name and manager mask name
+  set_fact:
+    service_mask: "{{ service_mask.stdout }}"
+    manager_mask: "{{ service_mask.stdout }}"
+  tags: get-param
+
+
+- name: Get manager local host name by ip address
+  shell: "hostname"
+  register: local_host
+  delegate_to: "{{ groups['fsm-master'][0] }}"
+  tags: get-param
+
+- name: Set fact for master local host name
+  set_fact:
+    local_host_name: "{{ local_host.stdout }}"
+  tags: get-param
+
+- name: Creat pk_b by localhost
+  shell: chdir=/opt/fusionstorage/repository/deploymanager_pkg/DSwareSoft python cryptApi.py gensk
+  register: creat_pk_b
+  delegate_to: "{{ groups['fsm-master'][0] }}"
+  tags: encrypt-passwd
+
+- name: Set fact for pk_b
+  set_fact:
+    pk_b: "{{ creat_pk_b.stdout }}"
+  tags: encrypt-passwd
+
+- name: Encrypt login pwd from plaintext by localhost
+  shell: "chdir=/opt/fusionstorage/repository/deploymanager_pkg/DSwareSoft
+  encrypt_key=`python cryptApi.py sxor _fMZ88MzCLH_QdRvDRwu3w==  {{ pk_b }}`
+  && python cryptApi.py encrypt {{ master_login_pwd }} ${encrypt_key} "
+  register: login_pwd_encrypt
+  delegate_to: "{{ groups['fsm-master'][0] }}"
+  tags: encrypt-passwd
+
+- name: Set fact for login pwd
+  set_fact:
+    login_pwd: "{{ login_pwd_encrypt.stdout }}"
+  tags: encrypt-passwd
+
+- name: Encrypt remote login pwd from plaintext by localhost
+  shell: "chdir=/opt/fusionstorage/repository/deploymanager_pkg/DSwareSoft
+  encrypt_key=`python cryptApi.py sxor _fMZ88MzCLH_QdRvDRwu3w==  {{ pk_b }}`
+  && python cryptApi.py encrypt {{ slave_login_pwd }} ${encrypt_key} "
+  register: remote_login_pwd_encrypt
+  delegate_to: "{{ groups['fsm-master'][0] }}"
+  tags: encrypt-passwd
+
+- name: Set fact for remote login pwd
+  set_fact:
+    remote_login_pwd: "{{ remote_login_pwd_encrypt.stdout }}"
+  tags: encrypt-passwd
+
+

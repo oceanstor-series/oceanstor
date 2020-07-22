@@ -221,3 +221,34 @@
   tags:
     - storage
     - create-pool
+
+- name: "Create VBS client"
+  hw_oceanstor_manage:
+    api_url: "{{ manager_float_ip }}"
+    api_port: "{{ api_port }}"
+    username: "{{ api_username }}"
+    password: "{{ api_password }}"
+    validate_certs: false
+    token: "{{ api_token }}"
+    function: "create_vbs_client"
+    param:
+      nodeType: 0
+  become: yes
+  register: result
+  tags:
+    - storage
+    - create-VBS
+
+- name: "Print reason when create VBS client failture"
+  debug: var=result.msg
+  when: result.status=='failure'
+  tags:
+    - storage
+    - create-VBS
+
+- name: "Exit if create VBS client failture"
+  fail: msg="fail"
+  when: result.status=='failure'
+  tags:
+    - storage
+    - create-VBS

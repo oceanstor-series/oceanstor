@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-#!coding:utf-8
+# !coding:utf-8
 
 # (c) 2020, huawei, Inc
 
@@ -65,8 +65,7 @@ class HuaweiOceanStorManage(object):
         except AttributeError:
             self.module.fail_json(
                 msg="{0} not supported".format(function),
-                changed=False
-            )
+                changed=False)
 
     def modify_user_password(self):
         """ 修改用户密码
@@ -76,6 +75,13 @@ class HuaweiOceanStorManage(object):
         password = self.module.params['param']['new_password']
         response = self.client.modify_user_password(
             username, password, old_password)
+
+        res = response['result']
+
+        if res["code"] != 0:
+            self.module.fail_json(
+                msg="Change password faild {0}".format(res['description']),
+                changed=False)
 
         self.module.exit_json(changed=True, msg="Change password successful")
 
@@ -107,7 +113,7 @@ class HuaweiOceanStorManage(object):
         """
         param = self.module.params["param"]
 
-        if not param.has_key("serverList"):
+        if "serverList" not in param:
             self.module.fail_json(msg="No Servers for Manage Cluster",
                                   changed=False)
 
@@ -119,7 +125,7 @@ class HuaweiOceanStorManage(object):
                 changed=False)
 
         name = "StorageControlCluster"
-        if param.has_key("name"):
+        if "name" in param:
             name = param["name"]
 
         response = self.client.create_manage_cluster(name, servers)
@@ -144,7 +150,7 @@ class HuaweiOceanStorManage(object):
 
         pool_para = {}
 
-        if not param.has_key("poolName"):
+        if "poolName" not in param:
             self.module.fail_json(msg="Pool name not assigned.",
                                   changed=False)
         pool_para["poolName"] = param['poolName']
@@ -152,7 +158,7 @@ class HuaweiOceanStorManage(object):
         pool_para['serviceType'] = param['serviceType']
         pool_para['encryptType'] = param['encryptType']
 
-        if not param.has_key("storageMediaType"):
+        if "storageMediaType" not in param:
             self.module.fail_json(msg="Storage Media type not assigned.",
                                   changed=False)
 
@@ -176,7 +182,7 @@ class HuaweiOceanStorManage(object):
             self.module.fail_json(msg="Invalid para redundancy policy",
                                   changed=False)
 
-        if not param.has_key("serverList"):
+        if "serverList" not in param:
             self.module.fail_json(msg="Servers for pool not assigned")
         server_list = param["serverList"]
 
@@ -196,7 +202,7 @@ class HuaweiOceanStorManage(object):
         """ 查询所有存储介质信息
         """
         response = self.client.query_all_disk()
- 
+
         if response['result'] != 0:
             self.module.fail_json(msg="Query all disk failed.", changed=False)
 
@@ -224,6 +230,58 @@ class HuaweiOceanStorManage(object):
 
         self.module.exit_json(changed=False, task={"taskStatus": "waiting"},
                               response=response)
+
+    def create_vbs_client(self):
+        """ 创建VBS Client
+        """
+        param = self.module.params["param"]
+        response = self.client.get_cluster_info()
+        servers = response["data"]
+        server_list = []
+        nodeType = 0
+
+        if "nodeType" in param:
+            nodeType = param["nodeType"]
+
+        for server in servers:
+            if 'vbs' not in server['usage']:
+                server_list.append({"nodeMgrIp": server['management_ip'],
+                                    "nodeType": nodeType})
+
+        # network_type = self.module.params['network_type']
+        if len(server_list) == 0:
+            self.module.exit_json(msg="All node haved add VBS client",
+                                  server_list=server_list,
+                                  status='success',
+                                  changed=True)
+
+        response = self.client.create_vbs_client(server_list)
+
+        if response['result'] == 0:
+            self.module.exit_json(msg="Create VBS client success",
+                                  server_list=server_list,
+                                  status='success',
+                                  changed=True)
+        elif response['result'] == 1:
+            fail_list = []
+            for server in response['detail']:
+                fail_list.append("{0}:{1}".format(server['ip'], server['description']))
+            self.module.fail_json(msg="Create VBS client fail "
+                                      "{0}".format(' '.join(fail_list)),
+                                  server_list=server_list,
+                                  status='failure',
+                                  changed=False)
+        elif response['result'] == 2:
+            self.module.fail_json(msg="Create VBS client fail "
+                                      "{0}".format(response['description']),
+                                  status='failure',
+                                  changed=False)
+
+        self.module.fail_json(msg=response,
+                              status='failure',
+                              server_list=server_list,
+                              changed=False)
+
 
 def main():
     manage = HuaweiOceanStorManage()

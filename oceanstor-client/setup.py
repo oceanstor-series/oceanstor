@@ -12,7 +12,7 @@ setup(
     url="",
     download_url="",
     author="Huawei OceanStor Storage",
-    author_email = "liulimin5@huawei.com",
+    author_email="liulimin5@huawei.com",
     license="BSD 2-Clause",
     packages=["oceanstor"],
     install_requires=["requests"],

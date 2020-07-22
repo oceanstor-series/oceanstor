@@ -136,3 +136,19 @@ pool_server_list: [
     ]
   }
 ]
+
+# 创建VBS参数
+vbs_list: [
+  {
+    "nodeMgrIp": "10.183.145.14",
+    "nodeType": 0
+  },
+  {
+    "nodeMgrIp": "10.183.144.161",
+    "nodeType": 0
+  },
+  {
+    "nodeMgrIp": "10.183.144.186",
+    "nodeType": 0
+  }
+]

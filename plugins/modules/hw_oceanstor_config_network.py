@@ -6,6 +6,7 @@
 from ansible.module_utils.basic import AnsibleModule
 from oceanstor.oceanstor_add_storage import OceanStorStorage
 
+
 class HuaweiOceanStorConfigNetwork(object):
     def __init__(self):
         ansible_options = dict(api_url=dict(type="str", required=True),
@@ -57,12 +58,12 @@ class HuaweiOceanStorConfigNetwork(object):
 
     def validity_network(self):
         """Validity network"""
-        response, code = self.oceanstor.get_server_info()
+        response = self.oceanstor.get_server_info()
         servers = response["data"]
         server_param = []
         for server in servers:
             server_param.append({"management_internal_ip": server['management_internal_ip']})
-        
+
         network_type = self.module.params['network_type']
 
         self.oceanstor.validity_network(network_type, server_param)
@@ -78,9 +79,11 @@ class HuaweiOceanStorConfigNetwork(object):
         elif step == "validity_network":
             self.validity_network()
 
+
 def main():
     settings = HuaweiOceanStorConfigNetwork()
     settings.update()
+
 
 if __name__ == '__main__':
     main()

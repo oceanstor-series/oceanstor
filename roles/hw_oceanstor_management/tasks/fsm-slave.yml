@@ -1,0 +1,34 @@
+---
+# get params from fsm-slave
+- name: Get service remote interface name by ip address
+  shell: "ifconfig | grep -B 2 {{ groups['fsm-slave'][0] }} | head -n 1 | awk -F: '{print $1}'"
+  register: service_remote_interface
+  delegate_to: "{{ groups['fsm-slave'][0] }}"
+  tags: get-param
+
+- name: Set fact for slave node interface name
+  set_fact:
+    service_remote_port: "{{ service_remote_interface.stdout }}"
+  tags: get-param
+
+- name: Get manager remote interface name by ip address
+  shell: "ifconfig | grep -B 2 {{ groups['fsm-slave'][0] }} | head -n 1 | awk -F: '{print $1}'"
+  register: manager_remote_interface
+  delegate_to: "{{ groups['fsm-slave'][0] }}"
+  tags: get-param
+
+- name: Set fact for slave node interface name
+  set_fact:
+    manager_remote_port: "{{ manager_remote_interface.stdout }}"
+  tags: get-param
+
+- name: Get remote host name by ip address
+  shell: "hostname"
+  register: remote_host
+  delegate_to: "{{ groups['fsm-slave'][0] }}"
+  tags: get-param
+
+- name: Set fact for remote host name
+  set_fact:
+    remote_host_name: "{{ remote_host.stdout }}"
+  tags: get-param

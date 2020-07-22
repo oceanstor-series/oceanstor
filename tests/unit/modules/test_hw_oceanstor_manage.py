@@ -4,8 +4,8 @@ from __future__ import absolute_import, division, print_function
 __metaclass__ = type
 
 from ansible_collections.oceanstor_series.oceanstor.plugins.modules.hw_oceanstor_manage import HuaweiOceanStorManage
-from units.modules.utils import AnsibleFailJson, AnsibleExitJson, ModuleTestCase, set_module_args
-from units.compat import mock
+from units.modules.utils import ModuleTestCase, set_module_args
+
 
 class HuaweiOceanStorManageTest(ModuleTestCase):
 
@@ -24,4 +24,4 @@ class HuaweiOceanStorManageTest(ModuleTestCase):
 
     def test_get_token_success(self):
         self._set_args()
-        storage = HuaweiOceanStorManage()
+        HuaweiOceanStorManage()

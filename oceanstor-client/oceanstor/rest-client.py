@@ -1,7 +1,7 @@
 
 # -*- coding: utf-8 -*-
 
-from oceanstor-client.oceanstor.oceanstor_base import OceanStorBase
+from oceanstor_base import OceanStorBase
 
 
 class StorageArray(object):
