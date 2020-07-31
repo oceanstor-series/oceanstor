@@ -23,7 +23,7 @@
   tags: get-param
 
 - name: Get remote host name by ip address
-  shell: "hostname"
+  command: "hostname"
   register: remote_host
   delegate_to: "{{ groups['fsm-slave'][0] }}"
   tags: get-param

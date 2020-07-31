@@ -4,7 +4,8 @@
 # (c) 2020, huawei, Inc
 
 from ansible.module_utils.basic import AnsibleModule
-from oceanstor.oceanstor_add_storage import OceanStorStorage
+from ansible_collections.oceanstor_series.oceanstor.plugins.module_utils.oceanstor.oceanstor_add_storage \
+    import OceanStorStorage
 
 
 class HuaweiOceanStorManage(object):
@@ -43,7 +44,7 @@ class HuaweiOceanStorManage(object):
         password = self.module.params["password"]
         token = self.module.params["token"]
 
-        client = OceanStorStorage(base_url, username, password, token)
+        client = OceanStorStorage(base_url, username, password, token, timeout=180)
 
         return client
 
@@ -108,6 +109,28 @@ class HuaweiOceanStorManage(object):
         else:
             self.module.fail_json(changed=True, msg=result['description'])
 
+    def uploading_license(self):
+        """加载License文件
+        """
+        param = self.module.params["param"]
+        license_file_name = param['license_file_name']
+        if not license_file_name:
+            self.module.fail_json(msg="Please input license file name like: -e filename=<licensefilename>",
+                                  changed=False)
+
+        response = self.client.uploading_license(self, license_file_name)
+
+        if str(response['result']['code']) == '0':
+            self.module.exit_json(msg="Uploading License file: {0} success.".format(license_file_name),
+                                  changed=True)
+        elif str(response['result']['code']) == '2':
+            self.module.fail_json(msg="Uploading License file: {0} fail.{1}".format(license_file_name,
+                                                                                    response['result']['description']),
+                                  changed=False)
+        else:
+            self.module.fail_json(msg="Uploading License file: {0} fail.".format(license_file_name),
+                                  changed=False)
+
     def create_manage_cluster(self):
         """ 创建控制集群
         """
@@ -117,39 +140,112 @@ class HuaweiOceanStorManage(object):
             self.module.fail_json(msg="No Servers for Manage Cluster",
                                   changed=False)
 
-        servers = param["serverList"]
+        servers = []
+        for server_param in param["serverList"]:
+            server = {}
+            server["nodeMgrIp"] = server_param["address"]
+            server["zkType"] = server_param["zkType"]
+            if server["zkType"] in ["sas_disk", "sata_disk", "ssd_disk", "ssd_card"]:
+                server["zkDiskSlot"] = int(server_param["zkDiskSlot"])
+            if server["zkType"] in ["ssd_card"]:
+                server["zkDiskEsn"] = server_param["zkDiskEsn"]
+            server["zkPartition"] = server_param["zkPartition"]
+
+            servers.append(server)
 
         if len(servers) not in [3, 5, 7, 9]:
-            self.module.fail_json(
-                msg="The number of servers for manage cluster is incorrect",
-                changed=False)
+            self.module.fail_json(msg="The number of servers for manage cluster is incorrect", changed=False)
 
         name = "StorageControlCluster"
         if "name" in param:
             name = param["name"]
 
+        self.module.warn("{0} {1}".format(name, servers))
         response = self.client.create_manage_cluster(name, servers)
 
-        if response['result'] == '1':
+        if str(response['result']) == '0':
+            self.module.exit_json(msg="Create manage cluster success",
+                                  changed=True)
+        elif str(response['result']) == '1':
             self.module.exit_json(
                 msg="Create manage cluster failed "
                 "{0}".format(response['detail']['description']),
                 changed=False)
-        elif response['result'] == '2':
+        elif str(response['result']) == '2':
             self.module.fail_json(
-                msg="Create manage cluster failed "
-                "{0}".format(response['description']), changed=False)
+                msg="Create manage cluster failed {0} {1}".format(response['description'], response['result']),
+                changed=False, data="{0} {1}".format(name, servers))
 
-        self.module.exit_json(msg="Create manage cluster success",
-                              changed=True)
+        self.module.fail_json(msg="Create manage cluster failed {0}".format(response['result']),
+                              changed=False)
+
+    def new_create_storage_pool(self):
+        """ 四合一创建存储池
+        """
+        param = self.module.params["param"]
+
+        serviceType = param['serviceType']
+
+        server_list = []
+        for server in param["serverList"]:
+            server_list.append(server['address'])
+
+        response = self.client.new_create_storage_pool(serviceType, server_list)
+
+        if str(response['result']['code']) == '0':
+            self.module.exit_json(msg="Create Storage pool success",
+                                  taskId=response['taskId'],
+                                  changed=True)
+        else:
+            self.module.fail_json(msg="Create Storage pool fail {0}".format(response['result']['description']),
+                                  server=server_list, changed=False)
+
+    @staticmethod
+    def _get_server_disk(server, server_disks, default_media_role, media_type_list):
+        """获取单个节点硬盘信息
+        """
+        disk_list = []
+        for server_disk in server_disks:
+            if server_disk["devRole"] == "no_use":
+                disk_list.append(dict(mediaRole=default_media_role, mediaType=server_disk["devType"],
+                                      phyDevEsn=server_disk["devEsn"], phySlotId=server_disk["devSlot"]))
+                if server_disk["devType"] not in media_type_list:
+                    media_type_list[server_disk["devType"]] = [server]
+                elif server not in media_type_list[server_disk["devType"]]:
+                    media_type_list[server_disk["devType"]].append(server)
+
+        return disk_list, media_type_list
+
+    def _get_list_disk(self, server_list):
+        """获取未使用存储,组成创池数据
+        """
+        disks = self.get_all_disk()
+        default_media_role = "main_storage"
+        media_type_list = {}
+        server_param = []
+        for server in server_list:
+            if server in disks:
+                disk_param = dict(nodeMgrIp=server)
+
+                disk_list, media_type_list = self._get_server_disk(server, disks[server], default_media_role,
+                                                                   media_type_list)
+
+                disk_param["mediaList"] = disk_list
+                server_param.append(disk_param)
+            else:
+                self.module.fail_json(msg="Query {0} disk failed.".format(server["address"]), changed=False)
+        if len(media_type_list.keys()) > 1:
+            self.module.fail_json(msg="Create pool Failed.All the type of server disk must be the same. "
+                                      "{0}".format(media_type_list),
+                                  changed=False)
+
+        return server_param
 
     def create_storage_pool(self):
         """ 创建存储池
         """
         param = self.module.params["param"]
-
         pool_para = {}
-
         if "poolName" not in param:
             self.module.fail_json(msg="Pool name not assigned.",
                                   changed=False)
@@ -184,19 +280,21 @@ class HuaweiOceanStorManage(object):
 
         if "serverList" not in param:
             self.module.fail_json(msg="Servers for pool not assigned")
-        server_list = param["serverList"]
 
-        response = self.client.create_storage_pool(pool_para, server_list)
+        server_list = []
+        for server in param["serverList"]:
+            server_list.append(server["address"])
+        server_param = self._get_list_disk(server_list)
+        response = self.client.create_storage_pool(pool_para, server_param)
 
-        result = response['result']
-
-        if result == 0:
+        if str(response['result']) == "0":
             self.module.exit_json(msg="Create Storage pool success",
                                   taskId=response['taskId'],
                                   changed=True)
-
-        self.module.fail_json(msg=response, para=pool_para,
-                              server=server_list, changed=False)
+        elif str(response['result']) == "2":
+            self.module.fail_json(msg="Create Storage pool fail {0}".format(response["description"]),
+                                  server=server_param, changed=False)
+        self.module.fail_json(msg=response, param=pool_para, server=server_param, changed=False)
 
     def get_all_disk(self):
         """ 查询所有存储介质信息
@@ -235,20 +333,26 @@ class HuaweiOceanStorManage(object):
         """ 创建VBS Client
         """
         param = self.module.params["param"]
+        vbs_list = []
+        management_ip_list = []
+        if "vbs_list" in param:
+            vbs_list = param["vbs_list"]
+            for vbs in vbs_list:
+                management_ip_list.append(vbs['address'])
         response = self.client.get_cluster_info()
         servers = response["data"]
         server_list = []
-        nodeType = 0
-
-        if "nodeType" in param:
-            nodeType = param["nodeType"]
 
         for server in servers:
-            if 'vbs' not in server['usage']:
-                server_list.append({"nodeMgrIp": server['management_ip'],
-                                    "nodeType": nodeType})
-
-        # network_type = self.module.params['network_type']
+            if server["management_ip"] in management_ip_list:
+                management_ip_list.remove(server["management_ip"])
+                if 'vbs' in server['usage']:
+                    self.module.warn('{0} has created VBS: '.format(server["management_ip"]))
+                else:
+                    server_list.append({"nodeMgrIp": server['management_ip'], "nodeType": 0})
+        if management_ip_list:
+            self.module.warn('{0} have not add storage node.Please add storage node '
+                             'first !'.format(' '.join(management_ip_list)))
         if len(server_list) == 0:
             self.module.exit_json(msg="All node haved add VBS client",
                                   server_list=server_list,

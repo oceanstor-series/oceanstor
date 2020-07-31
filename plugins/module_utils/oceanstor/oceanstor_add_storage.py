@@ -7,8 +7,8 @@
 
 import logging
 
-from oceanstor_base import OceanStorBase
-from exception import OceanStorParamError
+from ansible_collections.oceanstor_series.oceanstor.plugins.module_utils.oceanstor.oceanstor_base import OceanStorBase
+from ansible_collections.oceanstor_series.oceanstor.plugins.module_utils.oceanstor.exception import OceanStorParamError
 
 LOG = logging.getLogger(__name__)
 
@@ -23,9 +23,9 @@ class OceanStorStorage(OceanStorBase):
                                                username,
                                                password,
                                                token,
-                                               verify=False,
-                                               retries=3,
-                                               timeout=120)
+                                               verify=verify,
+                                               retries=retries,
+                                               timeout=timeout)
 
     def login(self, username, password):
         """ 登录鉴权
@@ -116,13 +116,9 @@ class OceanStorStorage(OceanStorBase):
     def add_storage_servers(self, servers):
         """ 增加节点信息
         """
-        url = "/api/v2/deploy_manager/servers"
+        url = "/api/v2/deploy_manager/servers_async"
 
-        body = {
-            "server_list": servers
-        }
-
-        return self.request(url, "POST", request_object=body)
+        return self.request(url, "POST", request_object=servers)
 
     def deploy_service(self, node_list, service_type="agent"):
         """ 批量部署存储服务
@@ -215,6 +211,20 @@ class OceanStorStorage(OceanStorBase):
 
         return self.request(url, "POST", request_object=body)
 
+    def scan_server_media(self, servers):
+        """ 指定节点扫描硬盘
+        servers：节点管理IP列表
+        """
+        url = "/dsware/service/vsan/scanServerMedia"
+
+        body = {
+            "nodeIpList": servers
+        }
+
+        response = self.request(url, "POST", request_object=body)
+
+        return response
+
     def create_manage_cluster(self, name, servers):
         """ 创建控制集群
         name: 集群名称(汉字，字母，数字和下划线，最长64字符)
@@ -275,6 +285,19 @@ class OceanStorStorage(OceanStorBase):
         body = {
             "poolPara": pool_para,
             "serverList": server_list
+        }
+
+        return self.request(url, "POST", request_object=body)
+
+    def new_create_storage_pool(self, servicetype, server_list):
+        """ 四合一推荐存储池创建方案 （8015无此接口）
+        """
+        url = "/v2/data_service/storagepool/recommendStoragePool"
+
+        body = {
+            "serviceType": servicetype,
+            "recommendSource": "DeviceManager",
+            "serverIpList": server_list
         }
 
         return self.request(url, "POST", request_object=body)
@@ -356,11 +379,21 @@ class OceanStorStorage(OceanStorBase):
 
         return self.request(url, "POST", request_object=body)
 
+    def uploading_license(self, license_file_name):
+        """ 加载License文件
+        """
+        url = "/dsware/service/license/loadLicenseFile"
+
+        body = {
+            "license": license_file_name,
+            "tinyFormDatas": '',
+        }
+
+        return self.request(url, "POST", request_object=body)
+
 
 def main():
     pass
-    # oss = OceanStorStorage("https://10.183.144.46:8088", "admin", "***", token="***")
-    # oss.query_tasklog_info(19)
 
 
 if __name__ == "__main__":

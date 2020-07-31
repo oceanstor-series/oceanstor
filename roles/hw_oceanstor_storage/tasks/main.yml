@@ -10,7 +10,8 @@
     param:
       new_password: "{{ api_password }}"
     function: "modify_user_password"
-  tags: change-password
+  tags: 
+    - change-password
 
 - name: Get OceanStor Auth token
   hw_oceanstor_manage:
@@ -24,11 +25,17 @@
   register: token
   tags:
     - always
+    - restore_factory
+    - add-storage
+    - storage
 
 - name: Set api-token factor
   set_fact: api_token={{ token.token }}
   tags:
     - always
+    - restore_factory
+    - add-storage
+    - storage
 
 - name: Restore factory for OceanStor storage
   hw_oceanstor_manage:
@@ -40,7 +47,8 @@
     token: "{{ api_token }}"
     function: "restore_factory"
   when: "{{ restore_factory }}==true"
-  tags: restore_factory
+  tags: 
+    - restore_factory
 
 - name: Add Huawei OceanStor Storage
   hw_oceanstor_add_storage:
@@ -49,10 +57,13 @@
     username: "{{ api_username }}"
     password: "{{ api_password }}"
     token: "{{ api_token }}"
-    servers: "{{ servers_info }}"
+    servers: "{{ server_list }}"
+    default_root_password: "{{ server_default_root_password }}"
     step: "add_node"
   become: yes
-  tags: storage
+  tags: 
+    - storage
+    - add-storage
 
 - name: Check Add Huawei OceanStor Storage status
   hw_oceanstor_add_storage:
@@ -62,19 +73,64 @@
     password: "{{ api_password }}"
     token: "{{ api_token }}"
     service_type: "agent"
-    servers: "{{ servers_info }}"
+    servers: "{{ server_list }}"
+    step: "check_add_storage_status"
+  become: yes
+  register: result
+  until: "result.status=='success' or result.status=='fail'"
+  retries: 50
+  delay: 5
+  tags: 
+    - storage
+    - add-storage
+
+- name: Exit if add OceanStor task failture
+  fail: msg="fail"
+  when: result.status=='fail'
+  tags: 
+    - storage
+    - add-storage
+
+- name: Install Huawei OceanStor Storage FSA
+  hw_oceanstor_add_storage:
+    api_url: "{{ manager_float_ip }}"
+    api_port: "{{ api_port }}"
+    username: "{{ api_username }}"
+    password: "{{ api_password }}"
+    token: "{{ api_token }}"
+    service_type: "agent"
+    servers: "{{ server_list }}"
+    step: "install_node"
+  become: yes
+  tags: 
+    - storage
+    - add-storage
+
+- name: Check Install Huawei OceanStor Storage FSA status
+  hw_oceanstor_add_storage:
+    api_url: "{{ manager_float_ip }}"
+    api_port: "{{ api_port }}"
+    username: "{{ api_username }}"
+    password: "{{ api_password }}"
+    token: "{{ api_token }}"
+    service_type: "agent"
+    servers: []
     step: "check_status"
   become: yes
   register: result
   until: "result.status=='success' or result.status=='failure'"
   retries: 50
   delay: 5
-  tags: storage
+  tags: 
+    - storage
+    - add-storage
 
-- name: Exit if add OceanStor task failture
+- name: Exit if Install Storage FSA task failture
   fail: msg="fail"
   when: result.status=='failure'
-  tags: storage
+  tags: 
+    - storage
+    - add-storage
 
 - name: Config OceanStor Storage frontend network
   hw_oceanstor_config_network:
@@ -83,7 +139,7 @@
     username: "{{ api_username }}"
     password: "{{ api_password }}"
     token: "{{ api_token }}"
-    network_param: "{{ storage_front_network }}"
+    network_param: "{{ storage_network.storage_frontend_network }}"
     network_type: "storage_frontend"
     step: "config_network"
   tags: network
@@ -95,7 +151,7 @@
     username: "{{ api_username }}"
     password: "{{ api_password }}"
     token: "{{ api_token }}"
-    network_param: "{{ storage_backend_network }}"
+    network_param: "{{ storage_network.storage_backend_network }}"
     network_type: "storage_backend"
     step: "config_network"
   tags: network
@@ -107,7 +163,7 @@
     username: "{{ api_username }}"
     password: "{{ api_password }}"
     token: "{{ api_token }}"
-    network_param: "{{ storage_front_network }}"
+    network_param: "{{ storage_network.storage_frontend_network }}"
     network_type: "storage_frontend"
     step: "validity_network"
   tags: network
@@ -119,22 +175,25 @@
     username: "{{ api_username }}"
     password: "{{ api_password }}"
     token: "{{ api_token }}"
-    network_param: "{{ storage_backend_network }}"
+    network_param: "{{ storage_network.storage_backend_network }}"
     network_type: "storage_backend"
     step: "validity_network"
   tags: network
 
-- name: Install Huawei OceanStor Storage
+- name: Install Huawei OceanStor Storage all
   hw_oceanstor_add_storage:
     api_url: "{{ manager_float_ip }}"
     api_port: "{{ api_port }}"
     username: "{{ api_username }}"
     password: "{{ api_password }}"
     token: "{{ api_token }}"
-    servers: "{{ servers_info }}"
+    service_type: "all"
+    servers: "{{ server_list }}"
     step: "install_node"
   become: yes
-  tags: storage
+  tags: 
+    - storage
+    - install-storage
 
 - name: Check Install Huawei OceanStor Storage status
   hw_oceanstor_add_storage:
@@ -143,7 +202,7 @@
     username: "{{ api_username }}"
     password: "{{ api_password }}"
     token: "{{ api_token }}"
-    servers: "{{ servers_info }}"
+    servers: "{{ server_list }}"
     service_type: "all"
     step: "check_status"
   become: yes
@@ -151,12 +210,16 @@
   until: "result.status=='success' or result.status=='failure'"
   delay: 5
   retries: 100
-  tags: storage
+  tags:
+    - storage
+    - install-storage
 
 - name: Exit if install OceanStor task failture
   fail: msg="fail"
   when: result.status=='failure'
-  tags: storage
+  tags:
+    - storage
+    - install-storage
 
 - name: "Create OceanStor manage cluster"
   hw_oceanstor_manage:
@@ -173,6 +236,20 @@
     - storage
     - mdc
 
+- name: Uploading the License
+  hw_oceanstor_manage:
+    api_url: "{{ manager_float_ip }}"
+    api_port: "{{ api_port }}"
+    username: "{{ api_username }}"
+    password: "{{ default_api_password }}"
+    validate_certs: false
+    param:
+      license_file_name: "{{ filename }}"
+    function: "uploading_license"
+    tags:
+      - never
+      - uploading-license
+
 - name: "Create OceanStor storage pool"
   hw_oceanstor_manage:
     api_url: "{{ manager_float_ip }}"
@@ -183,19 +260,19 @@
     token: "{{ api_token }}"
     function: "create_storage_pool"
     param:
-      poolName: "{{ hw_oceanstor_pool_name }}"
-      serviceType: "{{ hw_oceanstor_pool_service_type }}"
-      encryptType: "{{ hw_oceanstor_pool_encryt_type }}"
-      storageMediaType: "{{ hw_oceanstor_pool_main_media_type }}"
-      cacheMediaType: "{{ hw_oceanstor_pool_cache_media_type }}"
-      compressionAlgorithm: "{{ hw_oceanstor_pool_compression_algorithm }}"
-      redundancyPolicy: "{{ hw_oceanstor_pool_redundancy_policy }}"
-      replicaNum: "{{ hw_oceanstor_pool_replica_num }}"
-      securityLevel: "{{ hw_oceanstor_pool_security_level }}"
-      numDataUnits: "{{ hw_oceanstor_pool_num_data_units }}"
-      numParityUnits: "{{ hw_oceanstor_pool_num_parity_units }}"
-      numFaultTolerance: "{{ hw_oceanstor_pool_num_fault_tolerance }}"
-      serverList: "{{ pool_server_list }}"
+      poolName: "{{ oceanstor_pool.name }}"
+      serviceType: "{{ oceanstor_pool.service_type }}"
+      encryptType: "{{ oceanstor_pool.encryt_type }}"
+      storageMediaType: "{{ oceanstor_pool.main_media_type }}"
+      cacheMediaType: "{{ oceanstor_pool.cache_media_type }}"
+      compressionAlgorithm: "{{ oceanstor_pool.compression_algorithm }}"
+      redundancyPolicy: "{{ oceanstor_pool.redundancy_policy }}"
+      replicaNum: "{{ oceanstor_pool.replica_num }}"
+      securityLevel: "{{ oceanstor_pool.security_level }}"
+      numDataUnits: "{{ oceanstor_pool.num_data_units }}"
+      numParityUnits: "{{ oceanstor_pool.num_parity_units }}"
+      numFaultTolerance: "{{ oceanstor_pool.num_fault_tolerance }}"
+      serverList: "{{ oceanstor_pool.server_list }}"
   become: yes
   register: pool_task
   tags:
@@ -232,16 +309,15 @@
     token: "{{ api_token }}"
     function: "create_vbs_client"
     param:
-      nodeType: 0
+      vbs_list: "{{ vbs_list }}"
   become: yes
   register: result
   tags:
     - storage
     - create-VBS
 
-- name: "Print reason when create VBS client failture"
+- name: "Print result of create VBS client "
   debug: var=result.msg
-  when: result.status=='failure'
   tags:
     - storage
     - create-VBS

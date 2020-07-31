@@ -1,15 +1,16 @@
-ha_role: primary       # primary/standby : Role of the HA process. Set this parameter to primary for FSM 1.
-init_role: primary     # primary/standby : Initial role. Set this parameter to primary for FSM 1.
-ha_mode: double        # double : HA deployment mode. HA can be deployed on a single node or two nodes. FusionStorage only supports the two-node deployment mode.
-net_mode: single       # single/double : Management plane deployment mode. Single management plane and dual management planes (internal and external planes) are supported. In the single-management plane deployment mode, the external and internal IP addresses are the same.
+---
+hw_ha_deploy_mode: double                 # ha_deploy_mode default value
+ha_deploy_mode: "{{ hw_ha_deploy_mode }}" # double : HA deployment mode. HA can be deployed on a single node or two nodes. FusionStorage only supports the two-node deployment mode.
+hw_net_mode: single                       # net_mode default value
+net_mode: "{{ hw_net_mode }}"             # single/double : Management plane deployment mode. Single management plane and dual management planes (internal and external planes) are supported. In the single-management plane deployment mode, the external and internal IP addresses are the same.
 service_float_ip: &service_float_ip_config # External management floating IP address. The value is the same as the internal floating IP address in the single-management plane deployment mode.
-  10.183.144.46
+  "{{ hw_master_float_address }}"
 service_local_ip: &service_local_ip_config # External management IP address of FSM 1. The value is the same as the internal management IP address in the single-management plane deployment mode.ss
-  10.183.144.186
-master_login_pwd: iq7YV8DGBTc^   # Password of user root used for logging in to FSM 1 using SSH.
-service_remote_ip: &service_remote_ip_config # External management IP address of FSM 2. The value is the same as the internal management IP address in the single-management plane deployment mode.
-  10.183.144.161
-slave_login_pwd: Ra014KO%YVzd   # Password of user root used for logging in to FSM 2 using SSH. 
+  "{{ hw_master_local_address }}"
+master_login_pwd: "{{ hw_master_root_login_pwd }}"   # Password of user root used for logging in to FSM 1 using SSH.
+service_remote_ip: &service_remote_ip_config         # External management IP address of FSM 2. The value is the same as the internal management IP address in the single-management plane deployment mode.
+  "{{ hw_remote_address }}"
+slave_login_pwd: "{{ hw_remote_root_login_pwd }}"    # Password of user root used for logging in to FSM 2 using SSH.
 local_sn: 
 remote_sn: 
 local_cabinet: 

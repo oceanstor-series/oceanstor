@@ -1,7 +1,6 @@
 ---
 # tasks file for hw_oceanstor_management
 
-# tasks f
 - name: Make sure dir /opt/fusionstorage/repository/deploymanager_pkg/DSwareSoft/ not exists
   file:
     path: "{{ oceanstor_deploymanager_dir }}"
@@ -72,7 +71,17 @@
   become: yes
   tags: fsm
 
+- name: Generate HAInfoFromInstallTool.properties in folder /home
+  template:
+    src: "HAInfoFromInstallTool.properties-slave.j2"
+    dest: "/home/HAInfoFromInstallTool.properties"
+  become: yes
+  delegate_to: "{{ groups['fsm-slave'][0] }}"
+  tags:
+    - fsm
+    - fsm-slave
+
 - name: Run install.sh on the first FSM node
-  shell: "sh {{ oceanstor_deploymanager_dir }}/install.sh"
+  command: "sh {{ oceanstor_deploymanager_dir }}/install.sh"
   become: yes
   tags: fsm

@@ -49,7 +49,7 @@
 
 
 - name: Get manager local host name by ip address
-  shell: "hostname"
+  command: "hostname"
   register: local_host
   delegate_to: "{{ groups['fsm-master'][0] }}"
   tags: get-param
@@ -59,15 +59,15 @@
     local_host_name: "{{ local_host.stdout }}"
   tags: get-param
 
-- name: Creat pk_b by localhost
-  shell: chdir=/opt/fusionstorage/repository/deploymanager_pkg/DSwareSoft python cryptApi.py gensk
-  register: creat_pk_b
+- name: Create pk_b by localhost
+  command: chdir=/opt/fusionstorage/repository/deploymanager_pkg/DSwareSoft python cryptApi.py gensk
+  register: create_pk_b
   delegate_to: "{{ groups['fsm-master'][0] }}"
   tags: encrypt-passwd
 
 - name: Set fact for pk_b
   set_fact:
-    pk_b: "{{ creat_pk_b.stdout }}"
+    pk_b: "{{ create_pk_b.stdout }}"
   tags: encrypt-passwd
 
 - name: Encrypt login pwd from plaintext by localhost

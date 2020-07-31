@@ -4,7 +4,8 @@
 
 
 from ansible.module_utils.basic import AnsibleModule
-from oceanstor.oceanstor_add_storage import OceanStorStorage
+from ansible_collections.oceanstor_series.oceanstor.plugins.module_utils.oceanstor.oceanstor_add_storage \
+    import OceanStorStorage
 
 
 class HuaweiOceanStorConfigNetwork(object):
@@ -48,13 +49,33 @@ class HuaweiOceanStorConfigNetwork(object):
         """Config OceanStor network."""
         # step 1: check storage connection
         network_type = self.module.params['network_type']
-        param = self.module.params['network_param']
-        self.oceanstor.config_network_type(network_type, param["transfer_protocol"], param)
+        network_param = self.module.params['network_param']
+        param = {}
+        param['name'] = ''
+        transfer_protocol = network_param['transfer_protocol']
+        param['transfer_protocol'] = network_param['transfer_protocol']
+        ip_list = []
+        for ip in network_param['address_list']:
+            address_segment = {}
+            address_segment['begin_ip'] = ip['address_segment']['begin_address']
+            address_segment['end_ip'] = ip['address_segment']['end_address']
+            ip_param = dict(port_name=ip['port_name'], ip_segment=address_segment,
+                            subnet_prefix=str(ip['subnet_prefix']), default_gateway=ip['default_gateway'])
+            ip_list.append(ip_param)
+        param['ip_list'] = ip_list
 
-        self.module.warn("{0}-{1}".format(network_type, param.__str__()))
+        response = self.oceanstor.config_network_type(network_type, transfer_protocol, param)
 
-        self.module.exit_json(msg="Config OceanStor network complete",
-                              changed=True)
+        if str(response['result']['code']) != '0':
+            self.module.fail_json(msg=("Config OceanStor network Error {0}--{1}"
+                                       ).format(response['result']['code'], response['result']['description']),
+                                  changed=False)
+        elif 'success' in response['result']['description']:
+            self.module.exit_json(msg="Config OceanStor network complete", changed=True)
+        else:
+            self.module.fail_json(msg=("Config OceanStor network Error {0}--{1}"
+                                       ).format(response['result']['code'], response['result']['description']),
+                                  changed=False)
 
     def validity_network(self):
         """Validity network"""
@@ -66,9 +87,14 @@ class HuaweiOceanStorConfigNetwork(object):
 
         network_type = self.module.params['network_type']
 
-        self.oceanstor.validity_network(network_type, server_param)
+        response = self.oceanstor.validity_network(network_type, server_param)
 
-        self.module.exit_json(msg="Valid network complete", changed=True)
+        if str(response['result']['code']) != '0':
+            self.module.fail_json(changed=False, msg=("Validity OceanStor {0} network Error {1}--{2}"
+                                                      ).format(network_type, response['result']['code'],
+                                                               response['result']['description']))
+        else:
+            self.module.exit_json(msg="Validity OceanStor {0} network complete".format(network_type), changed=True)
 
     def update(self):
         step = self.module.params["step"]
