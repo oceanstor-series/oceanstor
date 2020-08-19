@@ -50,17 +50,20 @@ class HuaweiOceanStorConfigNetwork(object):
         # step 1: check storage connection
         network_type = self.module.params['network_type']
         network_param = self.module.params['network_param']
-        param = {}
+        param = dict()
         param['name'] = ''
         transfer_protocol = network_param['transfer_protocol']
         param['transfer_protocol'] = network_param['transfer_protocol']
         ip_list = []
+        default_gateway = '0.0.0.0'
+        default_port_name = ''
         for ip in network_param['address_list']:
-            address_segment = {}
+            address_segment = dict()
             address_segment['begin_ip'] = ip['address_segment']['begin_address']
             address_segment['end_ip'] = ip['address_segment']['end_address']
-            ip_param = dict(port_name=ip['port_name'], ip_segment=address_segment,
-                            subnet_prefix=str(ip['subnet_prefix']), default_gateway=ip['default_gateway'])
+            ip_param = dict(port_name=ip.get('port_name', default_port_name), ip_segment=address_segment,
+                            subnet_prefix=str(ip['subnet_prefix']),
+                            default_gateway=ip.get('default_gateway', default_gateway))
             ip_list.append(ip_param)
         param['ip_list'] = ip_list
 

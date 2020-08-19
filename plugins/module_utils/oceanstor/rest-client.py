@@ -27,7 +27,7 @@ class StorageArray(object):
         return resp
 
     def set_password(self, username, old_password, new_password):
-        path = '/deviceManager/rest/xxx/user/%s'.format(username)
+        path = '/deviceManager/rest/xxx/user/{0}'.format(username)
         body = {"ID": username, "PASSWORD": new_password, "OLDPASSWORD": old_password}
         http_code, resp = self.rest_api.request("PUT", path, body)
         self.get_result_data(resp)

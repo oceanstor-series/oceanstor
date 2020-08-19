@@ -1,5 +1,30 @@
 ---
 # tasks file for hw_oceanstor_management
+- name: print hw_ha_deploy_mode
+  debug: var=hw_ha_deploy_mode
+  tags: fsm1
+- name: Check the user input params
+  fail:
+    msg: "You need input the param: {{ item.msg }}."
+  when:  not {{ item.varname }}
+  with_items:
+    - varname: hw_ha_deploy_mode
+      msg: hw_ha_deploy_mode
+    - varname: hw_net_mode
+      msg: hw_net_mode
+    - varname: hw_master_float_address
+      msg: hw_master_float_address
+    - varname: hw_web_password
+      msg: hw_web_password
+    - varname: hw_master_local_address
+      msg: hw_master_local_address
+    - varname: hw_master_root_login_pwd
+      msg: hw_master_root_login_pwd
+    - varname: hw_remote_address
+      msg: hw_remote_address
+    - varname: hw_remote_root_login_pwd
+      msg: hw_remote_root_login_pwd
+  tags: fsm
 
 - name: Make sure dir /opt/fusionstorage/repository/deploymanager_pkg/DSwareSoft/ not exists
   file:
@@ -64,24 +89,50 @@
     - fsm
     - fsm-slave
 
-- name: Generate HAInfoFromInstallTool.properties in folder /home
+- name: Check params get from node
+  fail:
+    msg: "There have some params not find: {{ item.msg }} ."
+  when: " not ( item.varname )"
+  with_items:
+    - varname: manager_local_port
+      msg: Internal management network port of FSM 1
+    - varname: manager_gateway
+      msg: Internal management gateway
+    - varname: manager_mask
+      msg: Subnet mask of the internal management IP address
+    - varname: service_local_port
+      msg: External management network port of FSM 1
+    - varname: service_gateway
+      msg: External management gateway
+    - varname: service_mask
+      msg: Subnet mask of the external management IP address
+    - varname: local_host_name
+      msg: Host name of FSM 1
+    - varname: manager_remote_port
+      msg: Internal management network port of FSM 2
+    - varname: remote_host_name
+      msg: Host name of FSM 2
+  tags: fsm
+
+- name: Generate HAInfoFromInstallTool.properties in remote folder /home
+  template:
+    src: "HAInfoFromInstallTool.properties-slave.j2"
+    dest: "/home/HAInfoFromInstallTool.properties"
+  become: yes
+  delegate_to: "{{ groups['fsm-slave'][0] }}"
+  when: "( ha_deploy_mode ) == 'double'"
+  tags:
+    - fsm
+    - fsm-slave
+
+- name: Generate HAInfoFromInstallTool.properties in master folder /home
   template:
     src: "HAInfoFromInstallTool.properties.j2"
     dest: "/home/HAInfoFromInstallTool.properties"
   become: yes
   tags: fsm
 
-- name: Generate HAInfoFromInstallTool.properties in folder /home
-  template:
-    src: "HAInfoFromInstallTool.properties-slave.j2"
-    dest: "/home/HAInfoFromInstallTool.properties"
-  become: yes
-  delegate_to: "{{ groups['fsm-slave'][0] }}"
-  tags:
-    - fsm
-    - fsm-slave
-
 - name: Run install.sh on the first FSM node
-  command: "sh {{ oceanstor_deploymanager_dir }}/install.sh"
+  command: "sh {{ oceanstor_deploymanager_dir }}install.sh"
   become: yes
   tags: fsm

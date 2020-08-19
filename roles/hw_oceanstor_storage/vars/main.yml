@@ -2,18 +2,13 @@
 # vars file for hw_oceanstor_storage
 # 节点信息 管理IP地址
 server_list: "{{ hw_server_list }}"
-
+remove_server_list: "{{ hw_remove_server_list }}"
 storage_network: "{{ hw_storage_network }}"
-
 manage_cluster: "{{ hw_manage_cluster }}"
-
 oceanstor_pool: "{{ hw_oceanstor_pool }}"
-
 vbs_list: "{{ hw_vbs_list }}"
-
 hw_server_default_root_password: ""
-
 server_default_root_password: "{{ hw_server_default_root_password }}"
-
-filename: ""
+hw_license_file_path: ""
+license_file_path: "{{ hw_license_file_path }}"
 

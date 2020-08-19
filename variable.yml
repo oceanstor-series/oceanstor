@@ -1,71 +1,68 @@
----
-# hw_ha_deploy_mode:                              # double : HA deployment mode. HA can be deployed on a single node or two nodes. FusionStorage only supports the two-node deployment mode.
-# hw_net_mode:                                    # single/double : Management plane d
-# hw_master_float_address:                        # External management floating IP address. The value is the same as the internal floating IP address in the single-management plane deployment mode.
-# hw_web_password:                                # The new web login password. This parameter is mandatory for password change. For details about password rules, refer to the security policy.
-# hw_master_local_address:                        # External management IP address of FSM 1. The value is the same as the internal management IP address in the single-management plane deployment mode.ss
-# hw_master_root_login_pwd:                       # Password of user root used for logging in to FSM 1 using SSH.
-# hw_remote_address:                              # External management IP address of FSM 2. The value is the same as the internal management IP address in the single-management plane deployment mode.
-# hw_remote_root_login_pwd:                       # Password of user root used for logging in to FSM 2 using SSH.
-
-# # Add storage node
-# hw_server_default_root_password:     # server default root password. If you donot add root_password, then we will use this.
-# hw_server_list:                      # server list
+#---
+#hw_ha_deploy_mode:                              # double : HA deployment mode. HA can be deployed on a single node or two nodes. FusionStorage only supports the two-node deployment mode.
+#hw_net_mode:                                    # single/double : Single management plane and dual management planes (internal and external planes) are supported. In the single-management plane deployment mode, the external and internal IP addresses are the same.
+#hw_master_float_address:                        # External management floating IP address. The value is the same as the internal floating IP address in the single-management plane deployment mode.
+#hw_web_password:                                # The new web login password. This parameter is mandatory for password change. For details about password rules, refer to the security policy.
+#hw_master_local_address:                        # External management IP address of FSM 1. The value is the same as the internal management IP address in the single-management plane deployment mode.ss
+#hw_master_root_login_pwd:                       # Password of user root used for logging in to FSM 1 using SSH.
+#hw_remote_address:                              # External management IP address of FSM 2. The value is the same as the internal management IP address in the single-management plane deployment mode.
+#hw_remote_root_login_pwd:                       # Password of user root used for logging in to FSM 2 using SSH.
+#
+## Add node
+#hw_server_default_root_password:     # server default root password. If you donot add root_password, then we will use this.
+#hw_server_list:                      # server list. If you hadn't create cluster, there need three server at least.
 #  - address:                         # server ip adress
 #    root_password:                   # root password.  If you not add root_password, we will use: hw_server_default_root_password
-#    role:                            # role list. role: management/storage.  If you not add role, we will set default role: storage
+#    role:                            # role list. role: management/storage/compute. If you hadn't create cluster, you cannot choose compute. If you not add role, we will set default role: storage
 #      - storage
-
-# # Config network
-# hw_storage_network:
-#  storage_frontend_network:          # IP address of the front-end network
-#    scenario:                        # Scenario. initialization: initialization of the cluster; extend: node expansion
-#    transfer_protocol:               # Transmission protocols: TCP/InfiniBand/RDMA over Converged Ethernet
-#    address_list:                    # List of IP addresses.
-#      - port_name:                   # Port name. This parameter is mandatory when the IP address of a specified port is configured.
-#        address_segment:             # IP segment.
-#          begin_address:             # Start IP address.
-#          end_address:               # End IP address.
-#        subnet_prefix:               # Subnet mask/prefix. This parameter is required when the IP address of a specified port is configured.
-#        default_gateway:             # Default gateway. This parameter is required when the IP address of a specified port is configured.
-#  storage_backend_network:           # IP address of the back-end network
-#    transfer_protocol:               # Transmission protocols: TCP/InfiniBand/RDMA over Converged Ethernet
-#    scenario:                        # Scenario. initialization: initialization of the cluster; extend: node expansion
-#    address_list:                    # List of IP addresses.
-#      - port_name:                   # Port name. This parameter is mandatory when the IP address of a specified port is configured.
-#        address_segment:             # IP segment.
-#          begin_address:             # Start IP address.
-#          end_address:               # End IP address.
-#        subnet_prefix:               # Subnet mask/prefix. This parameter is required when the IP address of a specified port is configured.
-#        default_gateway:             # Default gateway. This parameter is required when the IP address of a specified port is configured.
-
-# # Create manage cluster
-# hw_manage_cluster:
+#
+#
+#
+## Config network
+#hw_storage_network:
+#  scenario:                        # Scenario. initialization: initialization of the cluster; extend: node expansion
+#  transfer_protocol:               # Transmission protocols: TCP/InfiniBand/RDMA over Converged Ethernet
+#  address_list:                    # List of IP addresses.
+#    - address_segment:             # IP segment.
+#        begin_address:             # Start IP address.
+#        end_address:               # End IP address.
+#      subnet_prefix:               # Subnet mask/prefix. This parameter is required when the IP address of a specified port is configured.
+#
+#
+## Remove node
+#hw_remove_server_list:              # server list.
+#  - address:                         # server ip adress
+#    root_password:                   # root password.
+#
+## Create manage cluster
+#hw_manage_cluster:
 #  name:                                # Cluster name. The value contains up to 64 characters consisting of letters, digits, or underscores (_).
-#  serverList:                          # Node list.
+#  serverList:                          # Node list. The number of server must in (3, 5, 7, 9).
 #    - address:                         # Server IP address of a node.
 #      zkType:                          # ZooKeeper disk type. Independent disks (SSDs and HDDs) and system disks are supported."sas_disk": SAS HDD;"sata_disk": SATA HDD;"ssd_disk": SAS SSD;"ssd_card": SSD card and NVMe SSD;"sys_disk": system disk
 #      zkDiskSlot:                      # Slot ID of the ZooKeeper disk. This parameter is mandatory when "sas", "sata", "ssd_disk", or "ssd_card" is specified for "zkType".
 #      zkDiskEsn:                       # ESN of the ZooKeeper disk. This parameter is mandatory when "zkType" is set to "ssd_card".
 #      zkPartition:                     # Mount path of a partition. This parameter is mandatory when "partition" is specified for "zkType".
-
-# # Create storage pool
-# hw_oceanstor_pool:
-#   name:                         # Storage pool name.The value contains a maximum of 64 characters consisting of letters, digits, and underscores (_).
-#   service_type:                 # 1: block 2: file 3: object 4: HDFS
-#   encryt_type:                  # Encryption type. 0: common storage pool, 1:encrypted storage pool
-#   main_media_type:              # Main storage type of the storage pool."sas_disk": SAS disk, "sata_disk": SATA disk, "ssd_card": SSD card and NVMe SSD, "ssd_disk": SSD
-#   cache_media_type:             # Cache type of the storage pool. "ssd_card": SSD card&NVMe SSD, "ssd_disk": SSD, "none": no cache
-#   compression_algorithm:        # Compression algorithm. "performance": performance algorithm; "capacity": capacity algorithm
-#   redundancy_policy:            # Redundancy policy."replication": replication, "ec": EC
-#   replica_num:                  # Replica quantity.Values: 2 and 3.Default value: 2.This parameter is available when ”redundancy_policy“ is "replication".
-#   security_level:               # Security level. 0: cabinet level; 1: server level.Only the server level is supported when "redundancyPolicy" is "ec".
-#   num_data_units:               # EC data block quantity.Value range: [4, 22].Default value: 4. When "redundancyPolicy" is "ec" and "enableAdvanceVolume" is "false", this parameter must be delivered.
-#   num_parity_units:             # EC parity block quantity.Value range: 2-4.Default value: 2.This parameter is available when "redundancyPolicy" is "ec".
-#   num_fault_tolerance:          # The default value is the same as the number of parity blocks.
-#   server_list:                  # List of server addess
-#     - address:                  # Server IP address of a storage node
-
-# # Create VBS server list
-# hw_vbs_list:
-#  - address:                                    # Server ip adress
+#
+#hw_license_file_path:                 # License file path.When you want activate the Oceation System, you can add the path of license file, and then executes.
+#
+## Create storage pool
+#hw_oceanstor_pool:
+#  name:                         # Storage pool name.The value contains a maximum of 64 characters consisting of letters, digits, and underscores (_).
+#  service_type:                 # 1: block 2: file 3: object 4: HDFS
+#  encryt_type:                  # Encryption type. 0: common storage pool, 1:encrypted storage pool
+#  main_media_type:              # Main storage type of the storage pool."sas_disk": SAS disk, "sata_disk": SATA disk, "ssd_card": SSD card and NVMe SSD, "ssd_disk": SSD
+#  cache_media_type:             # Cache type of the storage pool. "ssd_card": SSD card&NVMe SSD, "ssd_disk": SSD, "none": no cache
+#  compression_algorithm:        # Compression algorithm. "performance": performance algorithm; "capacity": capacity algorithm
+#  redundancy_policy:            # Redundancy policy."replication": replication, "ec": EC
+#  replica_num:                  # Replica quantity.Values: 2 and 3.Default value: 2.This parameter is available when "redundancy_policy" is "replication".
+#  security_level:               # Security level. 0: cabinet level; 1: server level.Only the server level is supported when "redundancyPolicy" is "ec".
+#  num_data_units:               # EC data block quantity.Value range: [4, 22].Default value: 4. When "redundancyPolicy" is "ec" and "enableAdvanceVolume" is "false", this parameter must be delivered.
+#  num_parity_units:             # EC parity block quantity.Value range: 2-4.Default value: 2.This parameter is available when "redundancyPolicy" is "ec".
+#  num_fault_tolerance:          # The default value is the same as the number of parity blocks.
+#  server_list:                  # List of server addess. The number of servers at least three,  and each server need four unused disks at least.
+#    - address:                  # Server IP address of a storage node.
+#
+## Create VBS server list
+#hw_vbs_list:
+# - address:                     # Server ip adress

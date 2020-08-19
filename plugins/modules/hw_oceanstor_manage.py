@@ -3,6 +3,7 @@
 
 # (c) 2020, huawei, Inc
 
+import os
 from ansible.module_utils.basic import AnsibleModule
 from ansible_collections.oceanstor_series.oceanstor.plugins.module_utils.oceanstor.oceanstor_add_storage \
     import OceanStorStorage
@@ -44,7 +45,7 @@ class HuaweiOceanStorManage(object):
         password = self.module.params["password"]
         token = self.module.params["token"]
 
-        client = OceanStorStorage(base_url, username, password, token, timeout=180)
+        client = OceanStorStorage(base_url, username, password, token, timeout=300)
 
         return client
 
@@ -116,20 +117,20 @@ class HuaweiOceanStorManage(object):
         license_file_name = param['license_file_name']
         if not license_file_name:
             self.module.fail_json(msg="Please input license file name like: -e filename=<licensefilename>",
-                                  changed=False)
+                                  changed=False, status='fail')
 
         response = self.client.uploading_license(self, license_file_name)
 
         if str(response['result']['code']) == '0':
             self.module.exit_json(msg="Uploading License file: {0} success.".format(license_file_name),
-                                  changed=True)
+                                  changed=True, status='success')
         elif str(response['result']['code']) == '2':
             self.module.fail_json(msg="Uploading License file: {0} fail.{1}".format(license_file_name,
                                                                                     response['result']['description']),
-                                  changed=False)
+                                  changed=False, status='fail')
         else:
             self.module.fail_json(msg="Uploading License file: {0} fail.".format(license_file_name),
-                                  changed=False)
+                                  changed=False, status='fail')
 
     def create_manage_cluster(self):
         """ 创建控制集群
@@ -229,7 +230,9 @@ class HuaweiOceanStorManage(object):
 
                 disk_list, media_type_list = self._get_server_disk(server, disks[server], default_media_role,
                                                                    media_type_list)
-
+                if len(disk_list) < 4:
+                    self.module.fail_json(msg=("The number of disk is not enough.You need four unused disks at "
+                                               "least on {0}.").format(server["address"]), changed=False)
                 disk_param["mediaList"] = disk_list
                 server_param.append(disk_param)
             else:
@@ -284,6 +287,8 @@ class HuaweiOceanStorManage(object):
         server_list = []
         for server in param["serverList"]:
             server_list.append(server["address"])
+        if len(server_list) < 3:
+            self.module.fail_json(msg="At least three Servers.There are only {0}.".format(len(server_list)))
         server_param = self._get_list_disk(server_list)
         response = self.client.create_storage_pool(pool_para, server_param)
 
@@ -333,7 +338,6 @@ class HuaweiOceanStorManage(object):
         """ 创建VBS Client
         """
         param = self.module.params["param"]
-        vbs_list = []
         management_ip_list = []
         if "vbs_list" in param:
             vbs_list = param["vbs_list"]
@@ -385,6 +389,45 @@ class HuaweiOceanStorManage(object):
                               status='failure',
                               server_list=server_list,
                               changed=False)
+
+    def upload_license(self):
+        """ Upload a license file.
+        """
+        param = self.module.params["param"]
+        license_file_path = param['license_file_path']
+        if license_file_path and os.access(license_file_path, os.F_OK) and os.access(license_file_path, os.R_OK):
+            self.client.upload_license(license_file_path)
+            self.module.exit_json(msg="Import license file Success.", changed=True, status='success')
+        else:
+            self.module.fail_json(msg="Import license file Fail.Please add 'hw_license_file_path' "
+                                      "and make sure it can be read.",
+                                  changed=True, status='fail')
+
+    def activate_license(self):
+        """Activating a License File
+        """
+        response = self.client.activate_license()
+        if str(response["result"]["code"]) == "0" and str(response["data"]["LicenseActiveResult"]) == "0":
+            self.module.exit_json(msg="Activate license file Success.", changed=True, status='success')
+        else:
+            self.module.fail_json(msg="Activate license file fail.{0}".format(response['result']['description']),
+                                  status='fail', changed=False)
+
+    def query_active_license(self):
+        """Query active licenses in batches
+        """
+        response = self.client.query_active_license()
+        if str(response["result"]["code"]) == "0":
+            if str(response["data"]["FileExist"]) == "0":
+                self.module.exit_json(msg="License file exists.", changed=True, status='success')
+            else:
+                self.module.fail_json(msg="License file not exists.You should add the License file first.Your License "
+                                          "Serial No is: {0}".format(response["data"]["LicenseSerialNo"]),
+                                      changed=False, status='fail')
+        else:
+            self.module.fail_json(msg="Query active licenses in batches has an error."
+                                      "{0}".format(response['result']['description']),
+                                  status='fail', changed=False)
 
 
 def main():

@@ -3,8 +3,10 @@
   tasks:
     - name: Clean FSA node
       command: "sh /opt/fusionstorage/deploymanager/clouda/clear_all_for_fsa_node.sh"
+      tags: fas
 
 - hosts: fsm
   tasks:
     - name: Clean FSM node
       command: "sh /opt/fusionstorage/deploymanager/clouda/clear_all_for_fsm_node.sh"
+      tags: fsm

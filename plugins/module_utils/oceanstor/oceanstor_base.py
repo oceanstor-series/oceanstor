@@ -29,7 +29,7 @@ class OceanStorBase(object):
         self.headers = {'content-type': 'application/json',
                         'accept': 'application/json',
                         'application-type': application_type}
-        self.timeout = 120
+        self.timeout = timeout
         self.retries = retries
         self.session = self._establish_session(username, password, token)
 
@@ -85,7 +85,7 @@ class OceanStorBase(object):
                 status_code = None
         return res, status_code
 
-    def request(self, target_url, method, params=None, request_object=None, timeout=None):
+    def request(self, target_url, method, params=None, request_object=None, files=None, timeout=None):
         """Send a request to OceanStor target api.
         Valid methods are 'GET', 'POST', 'PUT', 'DELETE'.
         :param target_url: target url --str, url=base_url+target_url
@@ -114,6 +114,12 @@ class OceanStorBase(object):
             elif params:
                 response = self.session.request(method=method, url=url,
                                                 params=params,
+                                                timeout=timeout_val)
+            elif files:
+                response = self.session.request(method=method, url=url,
+                                                params=params,
+                                                headers={'content-type': files[1]},
+                                                data=files[0],
                                                 timeout=timeout_val)
             else:
                 response = self.session.request(method=method, url=url,

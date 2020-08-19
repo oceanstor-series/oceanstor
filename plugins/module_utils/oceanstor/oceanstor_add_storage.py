@@ -6,7 +6,7 @@
 """ oceanstor_add_storage.py """
 
 import logging
-
+import urllib3
 from ansible_collections.oceanstor_series.oceanstor.plugins.module_utils.oceanstor.oceanstor_base import OceanStorBase
 from ansible_collections.oceanstor_series.oceanstor.plugins.module_utils.oceanstor.exception import OceanStorParamError
 
@@ -119,6 +119,26 @@ class OceanStorStorage(OceanStorBase):
         url = "/api/v2/deploy_manager/servers_async"
 
         return self.request(url, "POST", request_object=servers)
+
+    def connection_validity(self, servers, scenario=4):
+        """缩容前节点鉴权
+        """
+        url = '/api/v2/deploy_manager/connection_validity'
+
+        body = {
+            "nodes": servers,
+            "scenario": scenario,
+        }
+        return self.request(url, 'POST', request_object=body)
+
+    def remove_storage_servers(self, servers):
+        """移除节点信息
+        """
+        url = "/api/v2/deploy_manager/nodes.remove_from_cluster()"
+        body = {
+            "nodes": servers
+        }
+        return self.request(url, 'POST', request_object=body)
 
     def deploy_service(self, node_list, service_type="agent"):
         """ 批量部署存储服务
@@ -379,17 +399,28 @@ class OceanStorStorage(OceanStorBase):
 
         return self.request(url, "POST", request_object=body)
 
-    def uploading_license(self, license_file_name):
-        """ 加载License文件
+    def upload_license(self, license_file_path):
+        """ 上传导入License文件
         """
-        url = "/dsware/service/license/loadLicenseFile"
+        url = "/deviceManager/rest/xxx/file/license/Upload"
 
-        body = {
-            "license": license_file_name,
-            "tinyFormDatas": '',
-        }
+        data = {}
+        data['file'] = (license_file_path.split("/")[-1], open(license_file_path, 'rb').read())  # 名称，读文件
+        encode_data = urllib3.encode_multipart_formdata(data)
 
-        return self.request(url, "POST", request_object=body)
+        return self.request(url, "POST", files=encode_data)
+
+    def activate_license(self):
+        """ 激活License文件
+        """
+        url = "/deviceManager/rest/xxx/license"
+        return self.request(url, "PUT")
+
+    def query_active_license(self):
+        """ 批量查询已激活License
+        """
+        url = "/deviceManager/rest/xxx/license/activelicense"
+        return self.request(url, "GET")
 
 
 def main():
