@@ -1,6 +1,6 @@
 ---
 # tasks file for hw_oceanstor_storage
-- name: Change OceanStor default password
+- name: change-password Change OceanStor default password
   hw_oceanstor_manage:
     api_url: "{{ manager_float_ip }}"
     api_port: "{{ api_port }}"
@@ -13,45 +13,22 @@
   tags:
     - change-password
 
-- name: Get OceanStor Auth token
-  hw_oceanstor_manage:
-    api_url: "{{ manager_float_ip }}"
-    api_port: "{{ api_port }}"
-    username: "{{ api_username }}"
-    password: "{{ api_password }}"
-    validate_certs: false
-    function: "get_token"
-  become: yes
-  register: token
+- include: set_token.yml
   tags:
     - restore-factory
     - add-node
-    - install-storage
+    - install-node
     - add-compute
-    - mdc
-    - network
+    - create-control-cluster
+    - config-network
     - remove-node
     - create-pool
     - create-VBS
-    - remove-storage
-    - add-storage
-
-- name: Set api-token factor
-  set_fact: api_token={{ token.token }}
-  tags:
-    - restore-factory
-    - add-node
-    - install-storage
-    - add-compute
-    - mdc
-    - network
     - remove-node
-    - create-pool
-    - create-VBS
-    - remove-storage
     - add-storage
+    - import-license
 
-- name: Restore factory for OceanStor node
+- name: restore-factory Restore factory for OceanStor node
   hw_oceanstor_manage:
     api_url: "{{ manager_float_ip }}"
     api_port: "{{ api_port }}"
@@ -64,7 +41,7 @@
     - restore-factory
     - never
 
-- name: Add Huawei OceanStor node
+- name: add-node Check node whether in Cluster
   hw_oceanstor_add_storage:
     api_url: "{{ manager_float_ip }}"
     api_port: "{{ api_port }}"
@@ -72,194 +49,42 @@
     password: "{{ api_password }}"
     token: "{{ api_token }}"
     servers: "{{ server_list }}"
-    default_root_password: "{{ server_default_root_password }}"
+    step: "check_node_in_cluster"
+  become: yes
+  register: result_check
+  tags:
+    - add-node
+    - add-storage
+
+- name: add-node Exit if no new node to add
+  fail:
+    msg: "{{ result_check }}"
+  when: result_check.status=='fail'
+  tags:
+    - add-node
+    - add-storage
+
+- include: add_node.yml
+  vars:
     step: "add_node"
-  become: yes
-  register: result_add
+    add_server_list: "{{ result_check.servers }}"
+    default_root_password: "{{ server_default_root_password }}"
+  when: result_check.servers
   tags:
     - add-node
-    - add-compute
     - add-storage
 
-- name: Check Add Huawei OceanStor node status
-  hw_oceanstor_add_storage:
-    api_url: "{{ manager_float_ip }}"
-    api_port: "{{ api_port }}"
-    username: "{{ api_username }}"
-    password: "{{ api_password }}"
-    token: "{{ api_token }}"
-    service_type: "agent"
-    servers: "{{ server_list }}"
-    step: "check_add_storage_status"
-  become: yes
-  register: result
-  until: "result.status=='success' or result.status=='fail'"
-  retries: "{{ result_add.trytimes }}"
-  delay: 5
+- include: network.yml
   tags:
-    - add-node
-    - add-compute
+    - config-network
     - add-storage
 
-- name: Exit if add OceanStor task failture
-  fail: msg="fail"
-  when: result.status=='fail'
+- include: install_node.yml
   tags:
-    - add-node
-    - add-compute
-    - add-storage
-
-- name: Install Huawei OceanStor node FSA
-  hw_oceanstor_add_storage:
-    api_url: "{{ manager_float_ip }}"
-    api_port: "{{ api_port }}"
-    username: "{{ api_username }}"
-    password: "{{ api_password }}"
-    token: "{{ api_token }}"
-    service_type: "agent"
-    servers: "{{ server_list }}"
-    step: "install_node"
-  become: yes
-  register: result_install
-  tags:
-    - add-node
-    - add-compute
-    - add-storage
-
-- name: Check Install Huawei OceanStor node FSA status
-  hw_oceanstor_add_storage:
-    api_url: "{{ manager_float_ip }}"
-    api_port: "{{ api_port }}"
-    username: "{{ api_username }}"
-    password: "{{ api_password }}"
-    token: "{{ api_token }}"
-    service_type: "agent"
-    servers: []
-    step: "check_status"
-  become: yes
-  register: result
-  until: "result.status=='success' or result.status=='failure'"
-  retries: "{{ result_install.trytimes }}"
-  delay: 5
-  tags:
-    - add-node
-    - add-compute
-    - add-storage
-
-- name: Exit if Install node FSA task failture
-  fail: msg="fail"
-  when: result.status=='failure'
-  tags:
-    - add-node
-    - add-compute
-    - add-storage
-
-- name: Config OceanStor node frontend network
-  hw_oceanstor_config_network:
-    api_url: "{{ manager_float_ip }}"
-    api_port: "{{ api_port }}"
-    username: "{{ api_username }}"
-    password: "{{ api_password }}"
-    token: "{{ api_token }}"
-    network_param: "{{ storage_network }}"
-    network_type: "storage_frontend"
-    step: "config_network"
-  tags:
-    - network
-    - add-compute
-    - add-storage
-
-- name: Config OceanStor node backend network
-  hw_oceanstor_config_network:
-    api_url: "{{ manager_float_ip }}"
-    api_port: "{{ api_port }}"
-    username: "{{ api_username }}"
-    password: "{{ api_password }}"
-    token: "{{ api_token }}"
-    network_param: "{{ storage_network }}"
-    network_type: "storage_backend"
-    step: "config_network"
-  tags:
-    - network
-    - add-compute
-    - add-storage
-
-- name: Validity OceanStor node frontend network
-  hw_oceanstor_config_network:
-    api_url: "{{ manager_float_ip }}"
-    api_port: "{{ api_port }}"
-    username: "{{ api_username }}"
-    password: "{{ api_password }}"
-    token: "{{ api_token }}"
-    network_param: "{{ storage_network }}"
-    network_type: "storage_frontend"
-    step: "validity_network"
-  tags:
-    - network
-    - add-compute
-    - add-storage
-
-- name: Validity OceanStor node backend network
-  hw_oceanstor_config_network:
-    api_url: "{{ manager_float_ip }}"
-    api_port: "{{ api_port }}"
-    username: "{{ api_username }}"
-    password: "{{ api_password }}"
-    token: "{{ api_token }}"
-    network_param: "{{ storage_network }}"
-    network_type: "storage_backend"
-    step: "validity_network"
-  tags:
-    - network
-    - add-compute
-    - add-storage
-
-- name: Install Huawei OceanStor node all
-  hw_oceanstor_add_storage:
-    api_url: "{{ manager_float_ip }}"
-    api_port: "{{ api_port }}"
-    username: "{{ api_username }}"
-    password: "{{ api_password }}"
-    token: "{{ api_token }}"
-    service_type: "all"
-    servers: "{{ server_list }}"
-    step: "install_node"
-  become: yes
-  register: result_install
-  tags:
-    - add-compute
     - install-node
     - add-storage
 
-- name: Check Install Huawei OceanStor node status
-  hw_oceanstor_add_storage:
-    api_url: "{{ manager_float_ip }}"
-    api_port: "{{ api_port }}"
-    username: "{{ api_username }}"
-    password: "{{ api_password }}"
-    token: "{{ api_token }}"
-    servers: "{{ server_list }}"
-    service_type: "all"
-    step: "check_status"
-  become: yes
-  register: result
-  until: "result.status=='success' or result.status=='failure'"
-  delay: 5
-  retries: "{{ result_install.trytimes }}"
-  tags:
-    - add-compute
-    - install-node
-    - add-storage
-
-- name: Exit if install OceanStor task failture
-  fail: msg="fail"
-  when: result.status=='failure'
-  tags:
-    - add-compute
-    - install-node
-    - add-storage
-
-- name: Remove Huawei OceanStor node
+- name: remove-node Remove Huawei OceanStor node
   hw_oceanstor_add_storage:
     api_url: "{{ manager_float_ip }}"
     api_port: "{{ api_port }}"
@@ -275,7 +100,7 @@
     - remove-node
     - never
 
-- name: "Create OceanStor manage cluster"
+- name: "create-control-cluster Create OceanStor manage cluster"
   hw_oceanstor_manage:
     api_url: "{{ manager_float_ip }}"
     api_port: "{{ api_port }}"
@@ -287,75 +112,11 @@
     param: "{{ manage_cluster }}"
   become: yes
   tags:
-    - mdc
+    - create-control-cluster
 
-- name: "Query active licenses in batches."
-  hw_oceanstor_manage:
-    api_url: "{{ manager_float_ip }}"
-    api_port: "{{ api_port }}"
-    username: "{{ api_username }}"
-    password: "{{ api_password }}"
-    validate_certs: false
-    token: "{{ api_token }}"
-    function: "query_active_license"
-    param:
-  become: yes
-  register: result
-  tags:
-    - query-license
-    - never
+- include: license.yml
 
-- name: "Exit if have no license file"
-  fail: msg="result.msg"
-  when: result.status=='fail'
-  tags:
-    - query-license
-    - never
-
-- name: "Upload License File"
-  hw_oceanstor_manage:
-    api_url: "{{ manager_float_ip }}"
-    api_port: "{{ api_port }}"
-    username: "{{ api_username }}"
-    password: "{{ api_password }}"
-    validate_certs: false
-    token: "{{ api_token }}"
-    function: "upload_license"
-    param:
-      license_file_path: "{{ license_file_path }}"
-  become: yes
-  register: result
-  tags:
-    - license
-    - upload-license
-    - never
-
-- name: "Activate License File"
-  hw_oceanstor_manage:
-    api_url: "{{ manager_float_ip }}"
-    api_port: "{{ api_port }}"
-    username: "{{ api_username }}"
-    password: "{{ api_password }}"
-    validate_certs: false
-    token: "{{ api_token }}"
-    function: "activate_license"
-    param:
-  become: yes
-  register: result
-  tags:
-    - license
-    - activate-license
-    - never
-
-- name: "Exit if activate license file fail"
-  fail: msg="result.msg"
-  when: result.status=='fail'
-  tags:
-    - license
-    - activate-license
-    - never
-
-- name: "Create OceanStor storage pool"
+- name: "create-pool Create OceanStor storage pool"
   hw_oceanstor_manage:
     api_url: "{{ manager_float_ip }}"
     api_port: "{{ api_port }}"
@@ -384,7 +145,7 @@
     - create-pool
     - never
 
-- name: Check create OceanStor storage pool progress
+- name: create-pool Check create OceanStor storage pool progress
   hw_oceanstor_manage:
     api_url: "{{ manager_float_ip }}"
     api_port: "{{ api_port }}"
@@ -404,7 +165,55 @@
     - never
     - create-pool
 
-- name: "Create VBS client"
+- name: "create-pool Exit if create OceanStor storage pool failture"
+  fail: msg="fail"
+  when: progress.task.taskStatus != 'success'
+  tags:
+    - never
+    - create-pool
+
+- name: create-VBS Check node whether in Cluster
+  hw_oceanstor_add_storage:
+    api_url: "{{ manager_float_ip }}"
+    api_port: "{{ api_port }}"
+    username: "{{ api_username }}"
+    password: "{{ api_password }}"
+    token: "{{ api_token }}"
+    service_type: "agent"
+    servers: "{{ vbs_list }}"
+    step: "check_node_in_cluster"
+  become: yes
+  register: result_check
+  tags:
+    - never
+    - create-VBS
+    - add-compute
+
+- include: add_node.yml
+  vars:
+    step: "add_compute"
+    add_server_list: "{{ result_check.servers }}"
+    default_root_password: "{{ server_default_root_password }}"
+  when: result_check.servers
+  tags:
+    - never
+    - create-VBS
+    - add-compute
+
+- include: network.yml
+  when: result_check.servers
+  tags:
+    - never
+    - add-compute
+
+- include: install_node.yml
+  when: result_check.servers
+  tags:
+    - never
+    - create-VBS
+    - add-compute
+
+- name: "create-VBS Create VBS client"
   hw_oceanstor_manage:
     api_url: "{{ manager_float_ip }}"
     api_port: "{{ api_port }}"
@@ -420,36 +229,4 @@
   tags:
     - never
     - create-VBS
-
-- name: "Exit if create VBS client failture"
-  fail: msg="fail"
-  when: result.status=='failure'
-  tags:
-    - never
-    - create-VBS
-
-- name: "Create VBS client for compute"
-  hw_oceanstor_manage:
-    api_url: "{{ manager_float_ip }}"
-    api_port: "{{ api_port }}"
-    username: "{{ api_username }}"
-    password: "{{ api_password }}"
-    validate_certs: false
-    token: "{{ api_token }}"
-    function: "create_vbs_client"
-    param:
-      vbs_list: "{{ result_add.params }}"
-  become: yes
-  register: result
-  tags:
-    - storage
     - add-compute
-    - never
-
-- name: "Exit if create VBS client for compute failture"
-  fail: msg="fail"
-  when: result.status=='failure'
-  tags:
-    - storage
-    - add-compute
-    - never

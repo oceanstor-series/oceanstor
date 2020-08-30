@@ -1,9 +1,6 @@
 ---
 # tasks file for hw_oceanstor_management
-- name: print hw_ha_deploy_mode
-  debug: var=hw_ha_deploy_mode
-  tags: fsm1
-- name: Check the user input params
+- name: install-management Check the user input params
   fail:
     msg: "You need input the param: {{ item.msg }}."
   when:  not {{ item.varname }}
@@ -24,16 +21,16 @@
       msg: hw_remote_address
     - varname: hw_remote_root_login_pwd
       msg: hw_remote_root_login_pwd
-  tags: fsm
+  tags: install-management
 
-- name: Make sure dir /opt/fusionstorage/repository/deploymanager_pkg/DSwareSoft/ not exists
+- name: install-management Make sure dir /opt/fusionstorage/repository/deploymanager_pkg/DSwareSoft/ not exists
   file:
     path: "{{ oceanstor_deploymanager_dir }}"
     state: absent
   become: yes
-  tags: fsm
+  tags: install-management
 
-- name: Upload OceanStor artifact file to the first FSM node
+- name: install-management Upload OceanStor artifact file to the first FSM node
   copy:
     src: "{{ item }}"
     dest: "{{ oceanstor_deploymanager_dir }}"
@@ -41,55 +38,55 @@
     group: root
     mode: u+rw,g-wx,o-rwx
   become: yes
-  tags: fsm
+  tags: install-management
   with_fileglob:
       - "{{ oceanstor_artifact_dir }}*{{oceanstor_artifact_version}}*.tar.gz"
 
-- name: Find deploymanager folder path
+- name: install-management Find deploymanager folder path
   command: find {{ oceanstor_deploymanager_dir }} -name "*{{oceanstor_artifact_version}}*"
   register: oceanstor_artifact_name
-  tags: fsm
+  tags: install-management
   become: yes
 
-- name: Show OceanStor artifact file name
+- name: install-management Show OceanStor artifact file name
   debug: var=oceanstor_artifact_name
   become: yes
-  tags: fsm
+  tags: install-management
 
-- name: Extract OceanStor artifact into /opt/fusionstorage/repository/deploymanager_pkg/DSwareSoft/
+- name: install-management Extract OceanStor artifact into /opt/fusionstorage/repository/deploymanager_pkg/DSwareSoft/
   unarchive:
     src: "{{ oceanstor_artifact_name.stdout }}"
     dest: "{{ oceanstor_deploymanager_dir }}"
     remote_src: yes
   become: yes
-  tags: fsm
+  tags: install-management
 
-- name: Find deploymanager folder path
+- name: install-management Find deploymanager folder path
   command: find {{ oceanstor_deploymanager_dir }} -name "deploymanager"
   register: deploymanager_path
   become: yes
-  tags: fsm
+  tags: install-management
 
-- name: show deploymanager_path
+- name: install-management show deploymanager_path
   debug: var=deploymanager_path
-  tags: fsm
+  tags: install-management
 
-- name: Copy deploymanager files to folder /opt/fusionstorage/repository/deploymanager_pkg/DSwareSoft/
+- name: install-management Copy deploymanager files to folder /opt/fusionstorage/repository/deploymanager_pkg/DSwareSoft/
   shell: "cp -r {{ deploymanager_path.stdout }}/* {{ oceanstor_deploymanager_dir }}"
   become: yes
-  tags: fsm
+  tags: install-management
 
 - include: fsm-master.yml
   tags:
-    - fsm
+    - install-management
     - fsm-master
 
 - include: fsm-slave.yml
   tags:
-    - fsm
+    - install-management
     - fsm-slave
 
-- name: Check params get from node
+- name: install-management Check params get from node
   fail:
     msg: "There have some params not find: {{ item.msg }} ."
   when: " not ( item.varname )"
@@ -112,9 +109,9 @@
       msg: Internal management network port of FSM 2
     - varname: remote_host_name
       msg: Host name of FSM 2
-  tags: fsm
+  tags: install-management
 
-- name: Generate HAInfoFromInstallTool.properties in remote folder /home
+- name: install-management Generate HAInfoFromInstallTool.properties in remote folder /home
   template:
     src: "HAInfoFromInstallTool.properties-slave.j2"
     dest: "/home/HAInfoFromInstallTool.properties"
@@ -122,17 +119,17 @@
   delegate_to: "{{ groups['fsm-slave'][0] }}"
   when: "( ha_deploy_mode ) == 'double'"
   tags:
-    - fsm
+    - install-management
     - fsm-slave
 
-- name: Generate HAInfoFromInstallTool.properties in master folder /home
+- name: install-management Generate HAInfoFromInstallTool.properties in master folder /home
   template:
     src: "HAInfoFromInstallTool.properties.j2"
     dest: "/home/HAInfoFromInstallTool.properties"
   become: yes
-  tags: fsm
+  tags: install-management
 
-- name: Run install.sh on the first FSM node
+- name: install-management Run install.sh on the first FSM node
   command: "sh {{ oceanstor_deploymanager_dir }}install.sh"
   become: yes
-  tags: fsm
+  tags: install-management

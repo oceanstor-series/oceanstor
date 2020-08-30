@@ -1,0 +1,45 @@
+---
+- name: config-network Config OceanStor node frontend network
+  hw_oceanstor_config_network:
+    api_url: "{{ manager_float_ip }}"
+    api_port: "{{ api_port }}"
+    username: "{{ api_username }}"
+    password: "{{ api_password }}"
+    token: "{{ api_token }}"
+    network_param: "{{ storage_network.storage_frontend_network }}"
+    network_type: "storage_frontend"
+    step: "config_network"
+
+- name: config-network Config OceanStor node backend network
+  hw_oceanstor_config_network:
+    api_url: "{{ manager_float_ip }}"
+    api_port: "{{ api_port }}"
+    username: "{{ api_username }}"
+    password: "{{ api_password }}"
+    token: "{{ api_token }}"
+    network_param: "{{ storage_network.storage_backend_network }}"
+    network_type: "storage_backend"
+    step: "config_network"
+
+- name: config-network Validity OceanStor node frontend network
+  hw_oceanstor_config_network:
+    api_url: "{{ manager_float_ip }}"
+    api_port: "{{ api_port }}"
+    username: "{{ api_username }}"
+    password: "{{ api_password }}"
+    token: "{{ api_token }}"
+    network_param: "{{ storage_network.storage_frontend_network }}"
+    network_type: "storage_frontend"
+    step: "validity_network"
+
+- name: config-network Validity OceanStor node backend network
+  hw_oceanstor_config_network:
+    api_url: "{{ manager_float_ip }}"
+    api_port: "{{ api_port }}"
+    username: "{{ api_username }}"
+    password: "{{ api_password }}"
+    token: "{{ api_token }}"
+    network_param: "{{ storage_network.storage_backend_network }}"
+    network_type: "storage_backend"
+    step: "validity_network"
+

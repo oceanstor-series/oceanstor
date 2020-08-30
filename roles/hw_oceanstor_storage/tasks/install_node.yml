@@ -1,0 +1,34 @@
+---
+- name: install-node Install Huawei OceanStor node
+  hw_oceanstor_add_storage:
+    api_url: "{{ manager_float_ip }}"
+    api_port: "{{ api_port }}"
+    username: "{{ api_username }}"
+    password: "{{ api_password }}"
+    token: "{{ api_token }}"
+    service_type: "all"
+    servers: "{{ server_list }}"
+    step: "install_node"
+  become: yes
+  register: result_install
+
+- name: install-node Check Install Huawei OceanStor node status
+  hw_oceanstor_add_storage:
+    api_url: "{{ manager_float_ip }}"
+    api_port: "{{ api_port }}"
+    username: "{{ api_username }}"
+    password: "{{ api_password }}"
+    token: "{{ api_token }}"
+    servers: "{{ server_list }}"
+    service_type: "all"
+    step: "check_status"
+  become: yes
+  register: result
+  until: "result.status=='success' or result.status=='failure'"
+  delay: 5
+  retries: "{{ result_install.trytimes }}"
+
+- name: install-node Exit if Install  Huawei OceanStor node task failture
+  fail:
+    msg: "{{ result }}"
+  when: result.status=='failure'

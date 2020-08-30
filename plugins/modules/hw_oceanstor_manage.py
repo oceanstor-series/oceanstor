@@ -222,14 +222,24 @@ class HuaweiOceanStorManage(object):
         """
         disks = self.get_all_disk()
         default_media_role = "main_storage"
-        media_type_list = {}
-        server_param = []
+        media_type_list = dict()
+        server_param = list()
         for server in server_list:
-            if server in disks:
-                disk_param = dict(nodeMgrIp=server)
-
-                disk_list, media_type_list = self._get_server_disk(server, disks[server], default_media_role,
-                                                                   media_type_list)
+            if server['address'] in disks and server.get('mediaList'):
+                disk_param = dict(nodeMgrIp=server['address'])
+                disk_list = list()
+                for disk in server.get('mediaList'):
+                    disk_list.append(dict(mediaRole=disk['mediaRole'], mediaType=disk['mediaType'],
+                                          phyDevEsn=disk['phyDevEsn'], phySlotId=disk['phySlotId']))
+                if len(disk_list) < 4:
+                    self.module.fail_json(msg=("The number of disk is not enough.You need four unused disks at "
+                                               "least on {0}.").format(server["address"]), changed=False)
+                disk_param["mediaList"] = disk_list
+                server_param.append(disk_param)
+            elif server['address'] in disks:
+                disk_param = dict(nodeMgrIp=server['address'])
+                disk_list, media_type_list = self._get_server_disk(server['address'], disks[server['address']],
+                                                                   default_media_role, media_type_list)
                 if len(disk_list) < 4:
                     self.module.fail_json(msg=("The number of disk is not enough.You need four unused disks at "
                                                "least on {0}.").format(server["address"]), changed=False)
@@ -284,9 +294,8 @@ class HuaweiOceanStorManage(object):
         if "serverList" not in param:
             self.module.fail_json(msg="Servers for pool not assigned")
 
-        server_list = []
-        for server in param["serverList"]:
-            server_list.append(server["address"])
+        server_list = param["serverList"]
+
         if len(server_list) < 3:
             self.module.fail_json(msg="At least three Servers.There are only {0}.".format(len(server_list)))
         server_param = self._get_list_disk(server_list)
@@ -328,8 +337,10 @@ class HuaweiOceanStorManage(object):
         for task in response['taskInfo']:
             if str(taskId) != str(task['taskId']):
                 continue
-
-            self.module.exit_json(changed=False, task=task)
+            if task.get("taskStatus"):
+                self.module.exit_json(changed=False, task=task)
+            else:
+                self.module.exit_json(changed=False, task={"taskStatus": "waiting"}, response=response)
 
         self.module.exit_json(changed=False, task={"taskStatus": "waiting"},
                               response=response)

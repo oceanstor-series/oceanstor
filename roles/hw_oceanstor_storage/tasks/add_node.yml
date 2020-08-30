@@ -1,0 +1,70 @@
+---
+- name: add-node Add Huawei OceanStor node
+  hw_oceanstor_add_storage:
+    api_url: "{{ manager_float_ip }}"
+    api_port: "{{ api_port }}"
+    username: "{{ api_username }}"
+    password: "{{ api_password }}"
+    token: "{{ api_token }}"
+    servers: "{{ add_server_list }}"
+    default_root_password: "{{ server_default_root_password }}"
+    step: "{{ step }}"
+  become: yes
+  register: result
+
+- name: add-node Check Add Huawei OceanStor node status
+  hw_oceanstor_add_storage:
+    api_url: "{{ manager_float_ip }}"
+    api_port: "{{ api_port }}"
+    username: "{{ api_username }}"
+    password: "{{ api_password }}"
+    token: "{{ api_token }}"
+    service_type: "agent"
+    servers: "{{ add_server_list }}"
+    step: "check_add_storage_status"
+  become: yes
+  register: result
+  until: "result.status=='success' or result.status=='fail'"
+  retries: "{{ result.trytimes }}"
+  delay: 5
+  when: result.trytimes > 0
+
+- name: add-node Exit if Add Huawei OceanStor node task failture
+  fail:
+    msg: "{{ result }}"
+  when: result.status != 'success'
+
+- name: add-node Install Network Management Component
+  hw_oceanstor_add_storage:
+    api_url: "{{ manager_float_ip }}"
+    api_port: "{{ api_port }}"
+    username: "{{ api_username }}"
+    password: "{{ api_password }}"
+    token: "{{ api_token }}"
+    service_type: "agent"
+    servers: "{{ add_server_list }}"
+    step: "install_node"
+  become: yes
+  register: result_install
+
+- name: add-node Check Install Network Management Component status
+  hw_oceanstor_add_storage:
+    api_url: "{{ manager_float_ip }}"
+    api_port: "{{ api_port }}"
+    username: "{{ api_username }}"
+    password: "{{ api_password }}"
+    token: "{{ api_token }}"
+    service_type: "agent"
+    servers: []
+    step: "check_status"
+  become: yes
+  register: result
+  until: "result.status=='success' or result.status=='failure'"
+  retries: "{{ result_install.trytimes }}"
+  delay: 5
+
+- name: add-node Exit if Install Network Management Component failture
+  fail:
+    msg: "{{ result }}"
+  when: result.status=='failure'
+

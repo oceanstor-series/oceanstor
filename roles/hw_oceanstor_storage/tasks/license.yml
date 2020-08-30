@@ -1,0 +1,66 @@
+---
+- name: "query-license Query active licenses in batches."
+  hw_oceanstor_manage:
+    api_url: "{{ manager_float_ip }}"
+    api_port: "{{ api_port }}"
+    username: "{{ api_username }}"
+    password: "{{ api_password }}"
+    validate_certs: false
+    token: "{{ api_token }}"
+    function: "query_active_license"
+    param:
+  become: yes
+  register: result
+  tags:
+    - query-license
+    - never
+
+- name: "query-license Exit if have no license file"
+  fail: msg="result.msg"
+  when: result.status=='fail'
+  tags:
+    - query-license
+    - never
+
+- name: "import-license Upload License File"
+  hw_oceanstor_manage:
+    api_url: "{{ manager_float_ip }}"
+    api_port: "{{ api_port }}"
+    username: "{{ api_username }}"
+    password: "{{ api_password }}"
+    validate_certs: false
+    token: "{{ api_token }}"
+    function: "upload_license"
+    param:
+      license_file_path: "{{ license_file_path }}"
+  become: yes
+  register: result
+  tags:
+    - import-license
+    - upload-license
+    - never
+
+- name: "import-license Activate License File"
+  hw_oceanstor_manage:
+    api_url: "{{ manager_float_ip }}"
+    api_port: "{{ api_port }}"
+    username: "{{ api_username }}"
+    password: "{{ api_password }}"
+    validate_certs: false
+    token: "{{ api_token }}"
+    function: "activate_license"
+    param:
+  become: yes
+  register: result
+  tags:
+    - import-license
+    - activate-license
+    - never
+
+- name: "import-license Exit if activate license file fail"
+  fail: msg="result.msg"
+  when: result.status=='fail'
+  tags:
+    - import-license
+    - activate-license
+    - never

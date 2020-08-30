@@ -66,12 +66,12 @@ class HuaweiOceanStorAddStorage(object):
                                password=dict(type="str", required=True, no_log=True),
                                servers=dict(type="list", required=True),
                                validate_certs=dict(type="bool", default=False, required=False),
-                               default_root_password=dict(type="str", default='', required=False),
+                               default_root_password=dict(type="str", default='', no_log=True),
                                service_type=dict(type="str", default="agent", choices=["agent", "all"]),
                                step=dict(type="str", default="check_status",
                                          choices=["get_token", "add_node", "check_add_storage_status",
                                                   "check_status", "install_node", "install_compute",
-                                                  "add_compute", "remove_node"]))
+                                                  "add_compute", "remove_node", "check_node_in_cluster"]))
 
         required_together = [["api_url", "api_port", "username", "password", "servers"]]
 
@@ -106,6 +106,9 @@ class HuaweiOceanStorAddStorage(object):
             self.module.fail_json(changed=False,
                                   msg=("Fail! Please add root_password or set default_root_password "
                                        "for {0}").format(server['address']))
+        if server.get('user_name') and server.get('password'):
+            server_params['password'] = server['password']
+            server_params['user_name'] = server['user_name']
         if 'role' in server and server["role"]:
             server_params['role'] = server['role']
         else:
@@ -113,32 +116,51 @@ class HuaweiOceanStorAddStorage(object):
         server_params['management_internal_ip'] = server['address']
         server_params.update(server_default)
         response = self.oceanstor.check_connection(server_params)
+        status = 1
         if response['result']['code'] != '0':
-            self.module.fail_json(changed=False,
-                                  msg="check node {0} {1} connection failed".format(server["address"], response))
+            status = 0
+            self.module.fail_json(msg=("check node {0} connection failed. Description: "
+                                       "{1}").format(server["address"], response['result']['description']),
+                                  status='fail')
+
         for role in server_params["role"]:
             if role not in ['management', 'storage', 'compute']:
-                self.module.fail_json(changed=False, msg=("check role choice not management/storage/compute  {0} "
-                                                          "connection failed").format(server["address"]))
+                self.module.fail_json(changed=False, msg=("check role choice not management/storage/compute  "
+                                                          "{0}").format(server["address"]))
 
-        return server_params
+        return status, server_params
+
+    def _get_server_list(self):
+        """get server which in cluster"""
+        response = self.oceanstor.get_server_info()
+        node_list = list()
+        if str(response['result']['code']) == '0':
+            server_list = response['data']
+            for server in server_list:
+                if 0 < server['action_phase'] <= 12:
+                    node_list.append(server['management_internal_ip'])
+            return node_list
+        else:
+            self.module.fail_json(msg=('Select  OceanStor Storage node list fail {0} {1}'
+                                       ).format(response['result']['code'], response['result']['description']),
+                                  status='fail')
 
     def add_node(self):
         """Add Storage node."""
         manager_servers = []
         storage_servers = []
-        compute_servers = []
         server_default = dict(cabinet='1', authentication_mode='password', user_name='root')
-
+        node_servers = []
+        node_list = self._get_server_list()
         for server in self.module.params["servers"]:
-            server_params = self._refactoring_param_for_add_node(server, server_default, default_role="storage")
-            if "management" in server_params["role"]:
+            if server['address'] in node_list:
+                self.module.warn("Check node: {0} , have in the Cluster.".format(server["address"]))
+                continue
+            status, server_params = self._refactoring_param_for_add_node(server, server_default, default_role="storage")
+            if status and "management" in server_params["role"]:
                 manager_servers.append(server_params)
-            elif "storage" in server_params["role"] or "compute" in server_params["role"]:
+            elif status and "storage" in server_params["role"] or "compute" in server_params["role"]:
                 storage_servers.append(server_params)
-
-            if "compute" in server_params["role"]:
-                compute_servers.append(dict(address=server_params['management_internal_ip']))
 
         if manager_servers:
             response = self.oceanstor.add_storage_servers_with_fsm(manager_servers)
@@ -146,6 +168,8 @@ class HuaweiOceanStorAddStorage(object):
                 self.module.fail_json(msg=("Add OceanStor storage Node which include manager role failed."
                                            " Description:{0}").format(response['result']['description']),
                                       changed=True, errorCode=response['result']['code'])
+            for server in response['data']['server_list']:
+                node_servers.append(server['ip'])
 
         if storage_servers:
             response = self.oceanstor.add_storage_servers(storage_servers)
@@ -153,17 +177,24 @@ class HuaweiOceanStorAddStorage(object):
                 self.module.fail_json(msg=("Add OceanStor storage Node failed. "
                                            "Description:{0}").format(response['result']['description']),
                                       changed=False, errorCode=response['result']['code'])
+            for server in response['data']['server_list']:
+                node_servers.append(server['ip'])
 
-        self.module.exit_json(msg="Add OceanStor storage Node complete", changed=True, params=compute_servers,
-                              trytimes=50 * len(self.module.params["servers"]))
+        self.module.exit_json(msg="Add OceanStor storage Node complete.Server list:{0}".format('; '.join(node_servers)),
+                              changed=True, trytimes=50 * len(node_servers))
 
     def add_compute(self):
         """Add compute node."""
         storage_servers = []
         server_default = dict(cabinet='1', authentication_mode='password', user_name='root')
+        node_servers = []
+        node_list = self._get_server_list()
         for server in self.module.params["servers"]:
-            server_params = self._refactoring_param_for_add_node(server, server_default, default_role="compute")
-            if len(server_params["role"]) == 1 and "compute" in server_params["role"]:
+            if server['address'] in node_list:
+                self.module.warn("Check node: {0} , have in the Cluster.".format(server["address"]))
+                continue
+            status, server_params = self._refactoring_param_for_add_node(server, server_default, default_role="compute")
+            if status and len(server_params["role"]) == 1 and "compute" in server_params["role"]:
                 storage_servers.append(server_params)
 
         if storage_servers:
@@ -172,8 +203,10 @@ class HuaweiOceanStorAddStorage(object):
                 self.module.fail_json(msg=("Add OceanStor compute Node failed. "
                                            "Description:{0}").format(response['result']['description']),
                                       changed=False, errorCode=response['result']['code'])
-
-        self.module.exit_json(msg="Add OceanStor compute Node complete", changed=True)
+            for server in response['data']['server_list']:
+                node_servers.append(server['ip'])
+        self.module.exit_json(msg="Add OceanStor compute Node complete.Server list:{0}".format('; '.join(node_servers)),
+                              changed=True, params=node_servers, trytimes=50 * len(node_servers))
 
     def _refactoring_server_info(self, servers, server_list):
         """refactoring server info"""
@@ -279,15 +312,29 @@ class HuaweiOceanStorAddStorage(object):
         if str(response['result']['code']) == '0':
             server_list = response['data']
             for server in server_list:
-                if server['management_internal_ip'] in server_ip_list and server['action_phase'] != 2:
+                if server['management_internal_ip'] in server_ip_list and server['action_phase'] < 2:
                     self.module.exit_json(msg=("Interface for {0} executing").format(server['management_internal_ip']),
-                                          status='waiting', response='{0}'.format(response))
-            self.module.exit_json(msg='Add OceanStor Storage node Success', status='success',
-                                  response='{0}'.format(response))
+                                          status='waiting')
+            self.module.exit_json(msg='Add OceanStor Storage node Success', status='success')
         else:
-            self.module.fail_json(msg=('Add OceanStor Storage node fail {0} {1}'
+            self.module.exit_json(msg=('Check Add OceanStor Storage node fail {0} {1}'
                                        ).format(response['result']['code'], response['result']['description']),
                                   status='fail')
+
+    def check_node_in_cluster(self):
+        """Check node whether in cluster"""
+        server_list = self.module.params['servers']
+        node_list = self._get_server_list()
+        back_server = []
+        for server in server_list:
+            if server['address'] in node_list:
+                self.module.warn("{0} have in cluster".format(server['address']))
+            else:
+                back_server.append(server)
+        if back_server:
+            self.module.exit_json(change=False, status='success', servers=back_server)
+        else:
+            self.module.exit_json(change=False, status='fail', msg='All the node are in cluster', servers=back_server)
 
     def check_status(self):
         """Check add storage node status."""
@@ -297,11 +344,17 @@ class HuaweiOceanStorAddStorage(object):
 
         if str(response['result']['code']) == '0':
             status = response['data']['task_status']
-            self.module.warn("Deploy service task status {0}".format(status))
-            self.module.exit_json(status=status, changed=True)
+            server_result = response['data']['server_result']
+            msg = []
+            msg.append("Deploy service task status {0}".format(status))
+            for server in server_result:
+                msg.append(server["management_internal_ip"] + " " + server["sub_task_status"] +
+                           " percent:" + str(server["percent"]))
+            self.module.warn("{0}".format("; ".join(msg)))
+            self.module.exit_json(status=status, changed=True, msg="{0}".format("; ".join(msg)))
         else:
             self.module.warn("Deploy service task have Error {0}".format(response['result']['description']))
-            self.module.exit_json(status='error', changed=False)
+            self.module.exit_json(status='failure', changed=False)
 
     def install_node(self):
         """Install OceanStor storage node."""
@@ -326,7 +379,7 @@ class HuaweiOceanStorAddStorage(object):
 
         if str(response['result']['code']) == '0':
             self.module.exit_json(msg="Install OceanStor storage Node complete",
-                                  changed=True, status='successs', trytimes=len(server_param) * 50)
+                                  changed=True, status='success', trytimes=len(server_param) * 50)
         else:
             self.module.fail_json(msg="Install OceanStor storage Node "
                                       "fail.{0}".format(response['result']['description']),
@@ -392,6 +445,9 @@ class HuaweiOceanStorAddStorage(object):
 
         elif step == "remove_node":
             self.remove_node()
+
+        elif step == "check_node_in_cluster":
+            self.check_node_in_cluster()
 
 
 def main():

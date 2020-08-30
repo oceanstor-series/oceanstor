@@ -1,0 +1,14 @@
+---
+- name: Get OceanStor Auth token
+  hw_oceanstor_manage:
+    api_url: "{{ manager_float_ip }}"
+    api_port: "{{ api_port }}"
+    username: "{{ api_username }}"
+    password: "{{ api_password }}"
+    validate_certs: false
+    function: "get_token"
+  become: yes
+  register: token
+
+- name: Set api-token factor
+  set_fact: api_token={{ token.token }}

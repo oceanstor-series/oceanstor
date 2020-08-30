@@ -1,6 +1,6 @@
 #---
-#hw_ha_deploy_mode:                              # double : HA deployment mode. HA can be deployed on a single node or two nodes. FusionStorage only supports the two-node deployment mode.
-#hw_net_mode:                                    # single/double : Single management plane and dual management planes (internal and external planes) are supported. In the single-management plane deployment mode, the external and internal IP addresses are the same.
+#hw_ha_deploy_mode:                              # double/single  double: HA deployment mode. HA can be deployed on a single node or two nodes. FusionStorage only supports the two-node deployment mode.
+#hw_net_mode:                                    # single/double  single: Single management plane and dual management planes (internal and external planes) are supported. In the single-management plane deployment mode, the external and internal IP addresses are the same.
 #hw_master_float_address:                        # External management floating IP address. The value is the same as the internal floating IP address in the single-management plane deployment mode.
 #hw_web_password:                                # The new web login password. This parameter is mandatory for password change. For details about password rules, refer to the security policy.
 #hw_master_local_address:                        # External management IP address of FSM 1. The value is the same as the internal management IP address in the single-management plane deployment mode.ss
@@ -8,30 +8,41 @@
 #hw_remote_address:                              # External management IP address of FSM 2. The value is the same as the internal management IP address in the single-management plane deployment mode.
 #hw_remote_root_login_pwd:                       # Password of user root used for logging in to FSM 2 using SSH.
 #
-## Add node
+##Default root password
 #hw_server_default_root_password:     # server default root password. If you donot add root_password, then we will use this.
+#
+## Add node
 #hw_server_list:                      # server list. If you hadn't create cluster, there need three server at least.
 #  - address:                         # server ip adress
+#    user_name:                       # the login name. If the value if null, the script will uses root by default.
+#    password:                        # password for user_name.
 #    root_password:                   # root password.  If you not add root_password, we will use: hw_server_default_root_password
 #    role:                            # role list. role: management/storage/compute. If you hadn't create cluster, you cannot choose compute. If you not add role, we will set default role: storage
 #      - storage
 #
-#
-#
 ## Config network
 #hw_storage_network:
-#  scenario:                        # Scenario. initialization: initialization of the cluster; extend: node expansion
-#  transfer_protocol:               # Transmission protocols: TCP/InfiniBand/RDMA over Converged Ethernet
-#  address_list:                    # List of IP addresses.
-#    - address_segment:             # IP segment.
-#        begin_address:             # Start IP address.
-#        end_address:               # End IP address.
-#      subnet_prefix:               # Subnet mask/prefix. This parameter is required when the IP address of a specified port is configured.
+#  storage_frontend_network:          # IP address of the front-end network
+#    scenario:                        # Scenario. initialization: initialization of the cluster; extend: node expansion
+#    transfer_protocol:               # Transmission protocols: TCP/InfiniBand/RDMA over Converged Ethernet
+#    address_list:                    # List of IP addresses.
+#      - address_segment:             # IP segment.
+#          begin_address:             # Start IP address.
+#          end_address:               # End IP address.
+#        subnet_prefix:               # Subnet mask/prefix. This parameter is required when the IP address of a specified port is configured.
+#  storage_backend_network:           # IP address of the back-end network
+#    scenario:                        # Scenario. initialization: initialization of the cluster; extend: node expansion
+#    transfer_protocol:               # Transmission protocols: TCP/InfiniBand/RDMA over Converged Ethernet
+#    address_list:                    # List of IP addresses.
+#      - address_segment:             # IP segment.
+#          begin_address:             # Start IP address.
+#          end_address:               # End IP address.
+#        subnet_prefix:               # Subnet mask/prefix. This parameter is required when the IP address of a specified port is configured.
 #
 #
 #
 ## Remove node
-#hw_remove_server_list:              # server list.
+#hw_remove_server_list:               # server list.
 #  - address:                         # server ip adress
 #    root_password:                   # root password.
 #
@@ -57,13 +68,22 @@
 #  compression_algorithm:        # Compression algorithm. "performance": performance algorithm; "capacity": capacity algorithm
 #  redundancy_policy:            # Redundancy policy."replication": replication, "ec": EC
 #  replica_num:                  # Replica quantity.Values: 2 and 3.Default value: 2.This parameter is available when "redundancy_policy" is "replication".
-#  security_level:               # Security level. 0: cabinet level; 1: server level.Only the server level is supported when "redundancyPolicy" is "ec".
+#  security_level:               # Security level. server: server level; rack: cabinet level; disk: disk level.Only the server level is supported when "redundancyPolicy" is "ec".
 #  num_data_units:               # EC data block quantity.Value range: [4, 22].Default value: 4. When "redundancyPolicy" is "ec" and "enableAdvanceVolume" is "false", this parameter must be delivered.
 #  num_parity_units:             # EC parity block quantity.Value range: 2-4.Default value: 2.This parameter is available when "redundancyPolicy" is "ec".
 #  num_fault_tolerance:          # The default value is the same as the number of parity blocks.
 #  server_list:                  # List of server addess. The number of servers at least three,  and each server need four unused disks at least.
 #    - address:                  # Server IP address of a storage node.
+#      mediaList:                # List of main storage disks and cache disks for creating the storage pool. You can not add this, then the script will use all the unuse disks to create pool.
+#        - mediaRole:            # Media role."main_storage": main storage; "osd_cache": cache.
+#          mediaType:            # Cache type."sas_disk": SAS disk;"sata_disk": SATA disk;"ssd_card": SSD card and NVMe SSD;"ssd_disk": SSD
+#          phyDevEsn:            # Physical ESN.
+#          phySlotId:            # Physical slot ID.
+
 #
 ## Create VBS server list
 #hw_vbs_list:
-# - address:                     # Server ip adress
+#  - address:                     # compute node ip adress
+#    user_name:                   # the login name. If the value if null, the script will uses root by default.
+#    password:                    # password for user_name.
+#    root_password:               # root password. If you donot input this, the script will use the value of "hw_server_default_root_password".
